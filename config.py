@@ -88,31 +88,37 @@ class Config:
             CONFIG["windows"] = {
                 "settings": {
                     "assess": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": False,
                         "title": "Assess",
                     },
                     "atmospherics": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": False,
                         "title": "Atmospherics",
                     },
                     "chatter": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": True,
                         "title": "Chatter",
                     },
                     "combat": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": False,
                         "title": "Combat",
                     },
                     "conversation": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": True,
                         "title": "Conversation",
                     },
                     "death": {
+                        "default_open": True,
                         "if_closed": "main",
                         "timestamp": True,
                         "title": "Deaths",
@@ -123,26 +129,31 @@ class Config:
                         "title": "Debug",
                     },
                     "experience": {
+                        "default_open": False,
                         "if_closed": None,
                         "timestamp": False,
                         "title": "Experience",
                     },
                     "familiar": {
+                        "default_open": False,
                         "if_closed": "main",
                         "timestamp": False,
                         "title": "Familiar",
                     },
                     "group": {
+                        "default_open": False,
                         "if_closed": None,
                         "timestamp": False,
                         "title": "Group",
                     },
                     "inv": {
+                        "default_open": False,
                         "if_closed": None,
                         "timestamp": False,
                         "title": "Inventory",
                     },
                     "logons": {
+                        "default_open": True,
                         "if_closed": "main",
                         "timestamp": True,
                         "title": "Arrivals",
@@ -153,40 +164,48 @@ class Config:
                         "title": "Story",
                     },
                     "ooc": {
+                        "default_open": False,
                         "if_closed": "conversation",
                         "timestamp": True,
                         "title": "OOC",
                     },
                     "percWindow": {
+                        "default_open": False,
                         "if_closed": None,
                         "title": "Spells",
                     },
                     "raw": {
+                        "default_open": False,
                         "if_closed": None,
                         "timestamp": True,
                         "title": "Raw",
                     },
                     "room": {
+                        "default_open": True,
                         "if_closed": None,
                         "timestamp": False,
                         "title": "Room",
                     },
                     "stow": {
+                        "default_open": True,
                         "if_closed": None,
                         "timestamp": False,
                         "title": "Container",
                     },
                     "talk": {
+                        "default_open": False,
                         "if_closed": "conversation",
                         "timestamp": True,
                         "title": "Talk",
                     },
                     "thoughts": {
+                        "default_open": True,
                         "if_closed": "main",
                         "timestamp": True,
                         "title": "Thoughts",
                     },
                     "whispers": {
+                        "default_open": False,
                         "if_closed": "conversation",
                         "title": "Whispers",
                     },

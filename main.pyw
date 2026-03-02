@@ -287,6 +287,9 @@ class MainWindow(QMainWindow):
                     dock_widget.setWidget(self.windows[id]["widget"])
                     self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_widget)
 
+                    if not settings.get("default_open", True):
+                        dock_widget.hide()
+
         self.setDockNestingEnabled(True)
 
         # Menu Bar
