@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Union
 
 from config import Config
+from variables import Variables
 
 
 class EAccessState(Enum):
@@ -48,6 +49,7 @@ class EAccessClient(QThread):
         self._logger.debug("__init__")
 
         self._config = Config()
+        self._variables = Variables()
 
         ssl_config = QSslConfiguration.defaultConfiguration()
         ssl_config.setPeerVerifyMode(QSslSocket.PeerVerifyMode.VerifyNone)
@@ -128,7 +130,7 @@ class EAccessClient(QThread):
                     self.disconnect()
                     return
                 self.state = EAccessState.Unauthenticated
-                a_cmd = b"A\t" + self._username + b"\t" + self._hash_password() + b"\n"
+                a_cmd = b"A\t" + self._account + b"\t" + self._hash_password() + b"\n"
                 self._socket.write(a_cmd)
                 self._socket.flush()
 
@@ -176,13 +178,13 @@ class EAccessClient(QThread):
                     if not character_found:
                         character = self._character.decode("ascii")
                         instance = self._instance
-                        username = self._username.decode("ascii")
+                        account = self._account.decode("ascii")
 
                         self._logger.error(
-                            f"Character {character} does not exist in game instance {instance} on account {username}.",
+                            f"Character {character} does not exist in game instance {instance} on account {account}.",
                         )
                         self.message_received.emit(
-                            f"Character {character} does not exist in game instance {instance} on account {username}.",
+                            f"Character {character} does not exist in game instance {instance} on account {account}.",
                         )
                         self.disconnect()
 
@@ -194,25 +196,25 @@ class EAccessClient(QThread):
                     else:
                         self._logger.debug("_read_data: login successful")
                         _, _, _, _, _, _, _, game_host, game_port, _ = data.split(b"\t")
-                        self._config.set(
-                            "game",
-                            "game.host",
+                        self._variables.set(
+                            "temporary",
+                            "game_host",
                             game_host.decode("ascii").replace("GAMEHOST=", ""),
                         )
-                        self._config.set(
-                            "game",
-                            "game.port",
+                        self._variables.set(
+                            "temporary",
+                            "game_port",
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
-                        self._config.set("temporary", "login_key", self._login_key)
+                        self._variables.set("internal", "login_key", self._login_key)
                         self.disconnect()
 
                 elif data.startswith(b"X\t"):
                     self._logger.error(
-                        "Login failed.  Please check that you have specified the correct account username, password, character and game instance.",
+                        "Login failed.  Please check that you have specified the correct account, password, character and game instance.",
                     )
                     self.message_received.emit(
-                        "Login failed.  Please check that you have specified the correct account username, password, character and game instance.",
+                        "Login failed.  Please check that you have specified the correct account, password, character and game instance.",
                     )
                     self.disconnect()
 
@@ -244,10 +246,10 @@ class EAccessClient(QThread):
 
         self._logger.debug("authenticate: begin")
 
-        self._username = self._config.get("temporary", "username", "").encode("ascii")
-        self._password = self._config.get("temporary", "password", "").encode("ascii")
-        self._character = self._config.get("temporary", "character", "").encode("ascii")
-        self._instance = self._config.get("temporary", "instance", "")
+        self._account = self._variables.get("temporary", "account", "").encode("ascii")
+        self._password = self._variables.get("internal", "password", "").encode("ascii")
+        self._character = self._variables.get("temporary", "character", "").encode("ascii")
+        self._instance = self._variables.get("temporary", "instance", "")
 
         self.state = EAccessState.ListeningForKey
         self._socket.write(b"K\n")
@@ -266,7 +268,7 @@ class EAccessClient(QThread):
         if self._socket.state() == QSslSocket.SocketState.ConnectedState:
             self._socket.waitForDisconnected(3000)
 
-        self._config.set("temporary", "password", "")
+        self._variables.set("internal", "password", "")
         self.state = EAccessState.Disconnected
 
         self._logger.debug("disconnect: end")
@@ -277,9 +279,9 @@ class EAccessClient(QThread):
         loop = QEventLoop()
         QTimer.singleShot(timeout, loop.quit)
 
-        while not self._config.get("temporary", "login_key", ""):
+        while not self._variables.get("internal", "login_key", ""):
             loop.exec()
-            if self._config.get("temporary", "login_key", ""):
+            if self._variables.get("internal", "login_key", ""):
                 self._logger.debug("wait_for_login_key: end")
                 return True
         self._logger.debug("wait_for_login_key: end")
@@ -309,6 +311,7 @@ class GameClient(QThread):
         self._logger.debug("__init__")
 
         self._config = Config()
+        self._variables = Variables()
 
         self._socket = QTcpSocket(self)
         self._socket.connected.connect(self._on_connected)
@@ -394,9 +397,9 @@ class GameClient(QThread):
 
         self._logger.debug("connect: begin")
 
-        self._game_host = self._config.get("game", "game.host", "")
-        self._game_port = self._config.get("game", "game.port", 0)
-        self._login_key = self._config.get("temporary", "login_key", b"")
+        self._game_host = self._variables.get("temporary", "game_host", "")
+        self._game_port = self._variables.get("temporary", "game_port", 0)
+        self._login_key = self._variables.get("internal", "login_key", b"")
         if not self._game_host or not self._game_port or not self._login_key:
             self._logger.error("Missing game host, game port or login key.")
             return
@@ -458,8 +461,9 @@ class GameParser(QObject):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._window = self._config.get("temporary", "main_window", None)
+        self._window = self._variables.get("internal", "main_window", None)
 
     def Parse(self, message: str) -> None:
         self._buffer += message
@@ -494,8 +498,8 @@ class GameParser(QObject):
         self._logger.debug(f"Parse before: {repr(self._buffer)}")
 
         # <prompt></prompt>
-        self._config.set("temporary", "gametime", gametime)
-        self._config.set("temporary", "prompt", html.unescape(groups.group(2)))
+        self._variables.set("temporary", "gametime", gametime)
+        self._variables.set("temporary", "prompt", html.unescape(groups.group(2)))
         self._buffer = re.sub(
             r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>""",
             r"""\2""",
@@ -679,7 +683,7 @@ class GameParser(QObject):
             )
             if id == "room":
                 if subtitle:
-                    self._config.set("temporary", "roomname", subtitle)
+                    self._variables.set("temporary", "roomname", subtitle)
                     update_room = True
 
         self._buffer = re.sub(
@@ -744,7 +748,7 @@ class GameParser(QObject):
 
             self._logger.debug(f"compDef: id({id}) guild({guild})")
             if guild != "Commoner":
-                self._config.set("temporary", "guild", guild)
+                self._variables.set("temporary", "guild", guild)
                 self._logger.debug(f"guild({guild})")
 
         self._buffer = re.sub(
@@ -769,7 +773,7 @@ class GameParser(QObject):
             if id.startswith("room "):
                 id = id.replace(" ", "")
 
-                self._config.set("temporary", id, content)
+                self._variables.set("temporary", id, content)
 
                 update_room = True
 
@@ -804,8 +808,8 @@ class GameParser(QObject):
                     )
                     mindstate = int(MindState.to_int(groups.group(3)))
                     if skill and ranks and mindstate:
-                        self._config.set("temporary", f"{skill}.Ranks", ranks)
-                        self._config.set(
+                        self._variables.set("temporary", f"{skill}.Ranks", ranks)
+                        self._variables.set(
                             "temporary",
                             f"{skill}.LearningRate",
                             mindstate,
@@ -882,8 +886,8 @@ class GameParser(QObject):
                     minivitals_value = int(content_groups.group(2))
                     minivitals_text = content_groups.group(3).title()
 
-                    self._config.set("temporary", minivitals_id, minivitals_value)
-                    self._config.set(
+                    self._variables.set("temporary", minivitals_id, minivitals_value)
+                    self._variables.set(
                         "temporary",
                         f"{minivitals_id}BarText",
                         minivitals_text,
@@ -958,9 +962,9 @@ class GameParser(QObject):
             flags=re.DOTALL,
         ):
             lefthand = groups.group(3)
-            self._config.set("temporary", "lefthand", lefthand)
-            self._config.set("temporary", "lefthandid", groups.group(1))
-            self._config.set("temporary", "lefthandnoun", groups.group(2))
+            self._variables.set("temporary", "lefthand", lefthand)
+            self._variables.set("temporary", "lefthandid", groups.group(1))
+            self._variables.set("temporary", "lefthandnoun", groups.group(2))
             self._window.left.setText(lefthand)
 
         self._buffer = re.sub(
@@ -977,9 +981,9 @@ class GameParser(QObject):
             flags=re.DOTALL,
         ):
             righthand = groups.group(3)
-            self._config.set("temporary", "righthand", righthand)
-            self._config.set("temporary", "righthandid", groups.group(1))
-            self._config.set("temporary", "righthandnoun", groups.group(2))
+            self._variables.set("temporary", "righthand", righthand)
+            self._variables.set("temporary", "righthandid", groups.group(1))
+            self._variables.set("temporary", "righthandnoun", groups.group(2))
             self._window.right.setText(righthand)
 
         self._buffer = re.sub(
@@ -1077,7 +1081,7 @@ class GameParser(QObject):
         ):
             value = int(groups.group(1))
             roundtime = value - gametime
-            self._config.set("temporary", "roundtime", roundtime)
+            self._variables.set("temporary", "roundtime", roundtime)
             self._logger.debug(
                 f"roundtime: value({value}) gametime({gametime}) roundtime({roundtime})",
             )
@@ -1098,7 +1102,7 @@ class GameParser(QObject):
         ):
             value = int(groups.group(1))
             casttime = value - gametime
-            self._config.set("temporary", "casttime", casttime)
+            self._variables.set("temporary", "casttime", casttime)
             self._logger.debug(
                 f"casttime: value({value}) gametime({gametime}) castime({casttime})",
             )
@@ -1133,8 +1137,8 @@ class GameParser(QObject):
                     ),
                 )
                 mindstate = int(content_groups.group(4))
-                self._config.set("temporary", f"{skill}.Ranks", ranks)
-                self._config.set("temporary", f"{skill}.LearningRate", mindstate)
+                self._variables.set("temporary", f"{skill}.Ranks", ranks)
+                self._variables.set("temporary", f"{skill}.LearningRate", mindstate)
                 self._logger.debug(
                     f"Updating skill info: skill({skill}) ranks({ranks}) mindstate({mindstate})",
                 )
@@ -1151,7 +1155,7 @@ class GameParser(QObject):
 
             content = ""
             for key in self._room_attributes:
-                value = self._config.get("temporary", key, "Unknown")
+                value = self._variables.get("temporary", key, "Unknown")
 
                 if key == "roomname":
                     color = roomname_color

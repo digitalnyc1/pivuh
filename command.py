@@ -5,6 +5,7 @@ from PyQt6.QtGui import QTextCursor
 
 from config import Config
 from game import GameState
+from variables import Variables
 
 
 class CommandParser:
@@ -12,8 +13,9 @@ class CommandParser:
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._window = self._config.get("temporary", "main_window", None)
+        self._window = self._variables.get("internal", "main_window", None)
 
     def Parse(self, input: str) -> None:
         input = re.sub(r"\s+", " ", input.strip())
@@ -33,23 +35,23 @@ class CommandParser:
                 args_list = args.split(" ")
                 if len(args_list) != 4:
                     self._window.main.insertHtml(
-                        "<br/>Usage: #connect [username] [password] [character] [instance]",
+                        "<br/>Usage: #connect [account] [password] [character] [instance]",
                     )
                     return
 
-                self._config.set("temporary", "login_key", b"")
+                self._variables.set("temporary", "login_key", b"")
 
-                username, password, character, instance = args_list
-                self._config.set("temporary", "username", username)
-                self._config.set("temporary", "password", password)
-                self._config.set("temporary", "character", character)
-                self._config.set("temporary", "instance", instance)
+                account, password, character, instance = args_list
+                self._variables.set("temporary", "account", account)
+                self._variables.set("internal", "password", password)
+                self._variables.set("temporary", "character", character)
+                self._variables.set("temporary", "instance", instance)
 
                 self._window.eaccess_client.connect()
                 self._window.eaccess_client.authenticate()
                 self._window.eaccess_client.wait_for_login_key(3000)
 
-                self._config.set("temporary", "guild", "Commoner")
+                self._variables.set("temporary", "guild", "Commoner")
 
                 self._window.game_client.connect()
                 self._window.game_client.authenticate()
@@ -97,11 +99,25 @@ class CommandParser:
                 else:
                     self._window.main.insertHtml(usage)
 
+            elif command == "#variables":
+                usage = f"<br/>Usage: {command} [load|save]"
+                args_list = args.split(" ") if args else []
+                if len(args_list) != 1 or not args_list[0]:
+                    self._window.main.insertHtml(usage)
+                    return
+                subcommand = args_list[0]
+                if subcommand.startswith("l"):
+                    self._variables.load()
+                elif subcommand.startswith("s"):
+                    self._variables.save()
+                else:
+                    self._window.main.insertHtml(usage)
+
             else:
                 self._window.main.insertHtml(f"<br/>Unknown command: {input}")
 
         else:
-            self._config.set("temporary", "lastcommand", input)
+            self._variables.set("temporary", "lastcommand", input)
             if self._window.game_client.state != GameState.Connected:
                 self._window.main.insertHtml(f"<br/>({input})")
             else:

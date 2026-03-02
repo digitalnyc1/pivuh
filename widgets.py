@@ -37,6 +37,7 @@ from enum import Enum
 from config import Config
 from game import GameState
 from icons import Icons
+from variables import Variables
 
 
 class QCompass(QWidget):
@@ -59,8 +60,9 @@ class QCompass(QWidget):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._window = self._config.get("temporary", "main_window", None)
+        self._window = self._variables.get("internal", "main_window", None)
 
         icon_size = self._config.get("presets", "compass.iconsize", 16)
 
@@ -462,8 +464,9 @@ class QCustomTextEdit(QTextEdit):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._window = self._config.get("temporary", "main_window", None)
+        self._window = self._variables.get("internal", "main_window", None)
 
         self._id = id
 
@@ -595,6 +598,7 @@ class QIndicatorLabel(QLabel):
         super().__init__()
 
         self._config = Config()
+        self._variables = Variables()
 
         self.setAccessibleDescription(title)
         self.setContentsMargins(0, 0, 0, 0)
@@ -603,7 +607,7 @@ class QIndicatorLabel(QLabel):
 
     def setVisible(self, visible: bool) -> None:
         indicator = self.objectName().lower()
-        self._config.set("temporary", indicator, visible)
+        self._variables.set("temporary", indicator, visible)
 
         super().setVisible(visible)
 
@@ -626,8 +630,9 @@ class QIndicators(QWidget):
         super().__init__()
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._window = self._config.get("temporary", "main_window", None)
+        self._window = self._variables.get("internal", "main_window", None)
 
         icon_size = self._config.get("presets", "indicator.iconsize", 28)
 
@@ -847,6 +852,7 @@ class QTimerBar(QProgressBar):
         super().__init__()
 
         self._config = Config()
+        self._variables = Variables()
 
         self._logger = logging.getLogger(self.__class__.__name__)
 
@@ -912,9 +918,9 @@ class QTimerBar(QProgressBar):
         )
 
         if self._type == self.TimerBarType.RoundTime:
-            self._config.set("temporary", "roundtime", seconds_left)
+            self._variables.set("temporary", "roundtime", seconds_left)
         elif self._type == self.TimerBarType.CastTime:
-            self._config.set("temporary", "casttime", seconds_left)
+            self._variables.set("temporary", "casttime", seconds_left)
 
         if seconds_left <= 0:
             self._current_seconds = 0

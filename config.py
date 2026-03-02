@@ -76,14 +76,6 @@ class Config:
                 "whisper.bgcolor": "#111111",
             }
 
-        if "temporary" not in sections:
-            CONFIG["temporary"] = {
-                "gametime": 0,
-            }
-
-        if "variables" not in sections:
-            CONFIG["variables"] = {}
-
         if "windows" not in sections:
             CONFIG["windows"] = {
                 "settings": {

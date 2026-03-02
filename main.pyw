@@ -43,6 +43,7 @@ from icons import (
     Icons,
     ICONS_DIR,
 )
+from variables import Variables
 from widgets import (
     QCompass,
     QCustomTextEdit,
@@ -62,8 +63,9 @@ class MainWindow(QMainWindow):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._variables = Variables()
 
-        self._config.set("temporary", "main_window", self)
+        self._variables.set("internal", "main_window", self)
 
         self.setContentsMargins(6, 6, 6, 6)
         self.update_style()
@@ -397,8 +399,8 @@ class MainWindow(QMainWindow):
         if message:
             self.main.insertHtml(f"<br/>{message}")
 
-        character = self._config.get("temporary", "character", "")
-        instance = self._config.get("temporary", "instance", "")
+        character = self._variables.get("temporary", "character", "")
+        instance = self._variables.get("temporary", "instance", "")
         client_name = self._config.get("client", "name", "Pivuh")
         client_version = self._config.get("client", "version", "(dev)")
         self.setWindowTitle(f"{instance}: {character} [Connected] - {client_name} v{client_version}")
