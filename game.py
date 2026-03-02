@@ -1,6 +1,5 @@
 import html
 import logging
-import os
 import re
 import struct
 import time
@@ -1030,10 +1029,9 @@ class GameParser(QObject):
         ):
             picture_id = groups.group(1)
             if picture_id != "0":
-                cwd = os.getcwd()
-                file_name = os.path.join(cwd, "cache", f"{picture_id}.jpg")
-                file_uri = Path(file_name).as_uri()
-                if os.path.exists(file_name):
+                file_name = Path.cwd() / "cache" / f"{picture_id}.jpg"
+                file_uri = file_name.as_uri()
+                if file_name.exists():
                     self._buffer = re.sub(
                         rf"""<resource picture=['"]{picture_id}['"]/>\n?""",
                         f"""<img src="{file_uri}"/><br/>""",

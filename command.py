@@ -1,6 +1,5 @@
 import logging
 import re
-import time
 
 from PyQt6.QtGui import QTextCursor
 
@@ -34,7 +33,7 @@ class CommandParser:
                 args_list = args.split(" ")
                 if len(args_list) != 4:
                     self._window.main.insertHtml(
-                        "Usage: #connect [username] [password] [character] [instance]",
+                        "<br/>Usage: #connect [username] [password] [character] [instance]",
                     )
                     return
 

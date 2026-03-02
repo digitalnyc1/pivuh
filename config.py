@@ -1,6 +1,5 @@
 import json
-
-from os.path import exists
+from pathlib import Path
 from typing import Any
 
 
@@ -8,12 +7,12 @@ CONFIG = {}
 
 
 class Config:
-    def __init__(self, file: str = "config.json") -> None:
+    def __init__(self, file: str = "config/config.json") -> None:
         global CONFIG
 
         self.CONFIG = CONFIG
 
-        if exists(file):
+        if Path(file).exists():
             with open(file, "r") as json_file:
                 CONFIG = json.load(json_file)
             return
@@ -204,6 +203,7 @@ class Config:
             CONFIG[section] = {}
         CONFIG[section][key] = value
 
-    def save(self, file: str = "config.json") -> None:
+    def save(self, file: str = "config/config.json") -> None:
+        Path(file).parent.mkdir(parents=True, exist_ok=True)
         with open(file, "w") as json_file:
             json.dump(CONFIG, json_file, sort_keys=True)
