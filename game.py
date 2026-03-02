@@ -384,7 +384,7 @@ class GameClient(QThread):
 
         self._logger.debug("authenticate: begin")
 
-        ident = self._config.get("client", "ident", "")
+        ident = self._config.get("client", "client.ident", "")
         self._socket.write(f"<c>{self._login_key}\n".encode("ascii"))
         self._socket.write(f"<c>{ident}\n".encode("ascii"))
         self._socket.flush()

@@ -98,8 +98,8 @@ class MainWindow(QMainWindow):
 
         self.command = CommandParser()
 
-        client_name = self._config.get("client", "name", "Pivuh")
-        client_version = self._config.get("client", "version", "(dev)")
+        client_name = self._config.get("client", "client.name", "Pivuh")
+        client_version = self._config.get("client", "client.version", "(dev)")
 
         # Main window components
         main_label = QLabel("Story")
@@ -276,18 +276,18 @@ class MainWindow(QMainWindow):
             if id not in self.windows:
                 self.windows[id] = settings
                 if id == "main":
-                    self.windows[id]["widget"] = self.main
+                    self._variables.set("widgets", id, self.main)
                 elif id == "debug":
-                    self.windows[id]["widget"] = self.debug
+                    self._variables.set("widgets", id, self.debug)
                 else:
-                    self.windows[id]["widget"] = QCustomTextEdit(id)
+                    self._variables.set("widgets", id, QCustomTextEdit(id))
 
                     title = settings.get("title", "Unknown")
                     dock_widget = QDockWidget(title, self)
                     dock_widget.setAccessibleDescription(f"{title} Window")
                     dock_widget.setContentsMargins(3,3,3,3)
                     dock_widget.setObjectName(id)
-                    dock_widget.setWidget(self.windows[id]["widget"])
+                    dock_widget.setWidget(self._variables.get("widgets", id))
                     self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_widget)
 
                     if not settings.get("default_open", True):
@@ -407,8 +407,8 @@ class MainWindow(QMainWindow):
 
         character = self._variables.get("temporary", "character", "")
         instance = self._variables.get("temporary", "instance", "")
-        client_name = self._config.get("client", "name", "Pivuh")
-        client_version = self._config.get("client", "version", "(dev)")
+        client_name = self._config.get("client", "client.name", "Pivuh")
+        client_version = self._config.get("client", "client.version", "(dev)")
         self.setWindowTitle(f"{instance}: {character} [Connected] - {client_name} v{client_version}")
 
         self.status_label[0].setText("Connected")
@@ -417,8 +417,8 @@ class MainWindow(QMainWindow):
         if message:
             self.main.insertHtml(f"<br/>{message}")
 
-        client_name = self._config.get("client", "name", "Pivuh")
-        client_version = self._config.get("client", "version", "(dev)")
+        client_name = self._config.get("client", "client.name", "Pivuh")
+        client_version = self._config.get("client", "client.version", "(dev)")
         self.setWindowTitle(f"[Disconnected] - {client_name} v{client_version}")
 
         self.status_label[0].setText("Disconnected")
@@ -427,14 +427,18 @@ class MainWindow(QMainWindow):
         self.reset_minivitals()
 
     def _on_game_message_received(self, message: str) -> None:
-        self.windows["raw"]["widget"].insertHtml(f"{repr(html.escape(message))}<br/>")
+        widget = self._variables.get("widgets", "raw", None)
+        if widget:
+            widget.insertHtml(f"{repr(html.escape(message))}<br/>")
         self.game_parser.Parse(message)
 
     def _on_clear_window(self, window: str) -> None:
+        self._logger.debug(f"_on_clear_window: window({window})")
         if window not in self.windows:
             return
-        self._logger.debug(f"_on_clear_window: window({window})")
-        self.windows[window]["widget"].setHtml("")
+        widget = self._variables.get("widgets", window, None)
+        if widget:
+            widget.setHtml("")
 
     def _on_update_casttime(self, timestamp: int) -> None:
         self._logger.debug(f"_on_update_casttime: timestamp({timestamp})")
@@ -486,7 +490,9 @@ class MainWindow(QMainWindow):
         message = message.replace("<br/><pre", "<pre")
 
         self._logger.debug(f"_on_update_window: window({window}) message({message})")
-        self.windows[window]["widget"].insertHtml(message)
+        widget = self._variables.get("widgets", window, None)
+        if widget:
+            widget.insertHtml(message)
 
     def _on_unlock_toolbars(self, checked) -> None:
         self._logger.debug(f"_on_unlock_toolbars")
@@ -529,12 +535,15 @@ class MainWindow(QMainWindow):
 class DebugWindowHandler(logging.Handler):
     def __init__(self, window: Any):
         super().__init__()
+        self._variables = Variables()
         self._window = window
 
     def emit(self, record: LogRecord) -> None:
         try:
             msg = repr(html.escape(self.format(record)))
-            self._window.windows["debug"]["widget"].insertHtml(f"{msg}<br/>")
+            widget = self._variables.get("widgets", "debug", None)
+            if widget:
+                widget.insertHtml(f"{msg}<br/>")
         except Exception as e:
             self.handleError(record)
 

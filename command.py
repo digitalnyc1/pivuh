@@ -57,6 +57,20 @@ class CommandParser:
                 self._window.game_client.connect()
                 self._window.game_client.authenticate()
 
+            elif command == "#config":
+                usage = f"<br/>Usage: {command} [load|save]"
+                args_list = args.split(" ") if args else []
+                if len(args_list) != 1 or not args_list[0]:
+                    self._window.main.insertHtml(usage)
+                    return
+                subcommand = args_list[0]
+                if subcommand.startswith("l"):
+                    self._config.load()
+                elif subcommand.startswith("s"):
+                    self._config.save()
+                else:
+                    self._window.main.insertHtml(usage)
+
             elif command == "#disconnect":
                 self._window.eaccess_client.disconnect()
                 self._window.game_client.disconnect()

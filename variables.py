@@ -9,6 +9,7 @@ VARIABLES: dict[str, dict] = {}
 TRANSIENT_GROUPS: set[str] = {
     "internal",
     "temporary",
+    "widgets",
 }
 
 
