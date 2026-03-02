@@ -188,12 +188,7 @@ DEFAULTS: dict = {
 
 
 def _deep_merge(base: dict, overrides: dict) -> dict:
-    """Recursively merge *overrides* on top of *base*, returning a new dict.
-
-    - Dict values are merged recursively so that keys present only in *base*
-      are preserved (i.e. user config fills in only what it defines).
-    - All other value types from *overrides* take precedence over *base*.
-    """
+    """Recursively merge overrides on top of base, returning a new dict."""
     result = dict(base)
     for key, value in overrides.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
@@ -208,11 +203,7 @@ class Config:
         self.load(file)
 
     def load(self, file: str = "config/config.json") -> None:
-        """Load configuration from *file*, merging with built-in defaults.
-
-        Any keys present in DEFAULTS but absent from the user's file are
-        seamlessly filled in, so the running config is always complete.
-        """
+        """Load configuration from disk, merging with built-in defaults."""
         global CONFIG
 
         merged = _deep_merge({}, DEFAULTS)

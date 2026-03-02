@@ -8,7 +8,7 @@ from PyQt6.QtGui import QIcon
 ICONS_DIR = Path("images")
 if hasattr(sys, "_MEIPASS"):
     # We're running from inside a pyinstaller binary
-    ICONS_DIR = Path(sys._MEIPASS) / "images"
+    ICONS_DIR = Path(sys._MEIPASS) / "images"  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class Icons:

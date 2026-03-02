@@ -69,7 +69,7 @@ class EAccessClient(QThread):
 
         self._logger.debug("_handle_error: end")
 
-    def _handle_ssl_errors(self, ssl_errors: QSslError) -> None:
+    def _handle_ssl_errors(self, ssl_errors: list[QSslError]) -> None:
         self._logger.debug("_handle_ssl_errors: begin")
 
         ignored_errors = [
@@ -90,7 +90,7 @@ class EAccessClient(QThread):
         self._logger.debug("_handle_ssl_errors: end")
 
     def _hash_password(self) -> bytes:
-        password = list(self._password)
+        password = list(self._password[:32])
         hash_key = list(self._hash_key[:32])
         return b"".join(
             [
@@ -127,7 +127,7 @@ class EAccessClient(QThread):
                         f"Received invalid hash key from {self._eaccess_host}.",
                     )
                     self.state = EAccessState.InvalidResponse
-                    self.disconnect()
+                    self.do_disconnect()
                     return
                 self.state = EAccessState.Unauthenticated
                 a_cmd = b"A\t" + self._account + b"\t" + self._hash_password() + b"\n"
@@ -146,12 +146,19 @@ class EAccessClient(QThread):
 
                     self._logger.error(f"Login failed: {reason}.")
                     self.message_received.emit(f"Login failed: {reason}.")
-                    self.disconnect()
+                    self.do_disconnect()
 
                 else:
                     self.state = EAccessState.Authenticated
                     data, _, _ = data.partition(b"\n")
-                    _, _, _, self._login_key, _ = data.split(b"\t")
+                    try:
+                        parts = data.split(b"\t")
+                        self._login_key = parts[3]
+                    except IndexError:
+                        self._logger.error("Failed to parse login key from server response.")
+                        self.message_received.emit("Failed to parse login key from server response.")
+                        self.do_disconnect()
+                        return
 
                     g_cmd = f"G\t{self._instance}\n".encode("ascii")
                     self._socket.write(g_cmd)
@@ -186,16 +193,24 @@ class EAccessClient(QThread):
                         self.message_received.emit(
                             f"Character {character} does not exist in game instance {instance} on account {account}.",
                         )
-                        self.disconnect()
+                        self.do_disconnect()
 
                 elif data.startswith(b"L\t"):
                     if b"OK" not in data:
                         self._logger.error("Login failed.")
                         self.message_received.emit("Login failed.")
-                        self.disconnect()
+                        self.do_disconnect()
                     else:
                         self._logger.debug("_read_data: login successful")
-                        _, _, _, _, _, _, _, game_host, game_port, _ = data.split(b"\t")
+                        try:
+                            parts = data.split(b"\t")
+                            game_host = parts[7]
+                            game_port = parts[8]
+                        except IndexError:
+                            self._logger.error("Failed to parse game host/port from server response.")
+                            self.message_received.emit("Failed to parse game host/port from server response.")
+                            self.do_disconnect()
+                            return
                         self._variables.set(
                             "temporary",
                             "game_host",
@@ -207,7 +222,7 @@ class EAccessClient(QThread):
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
                         self._variables.set("internal", "login_key", self._login_key.decode("ascii"))
-                        self.disconnect()
+                        self.do_disconnect()
 
                 elif data.startswith(b"X\t"):
                     self._logger.error(
@@ -216,7 +231,7 @@ class EAccessClient(QThread):
                     self.message_received.emit(
                         "Login failed.  Please check that you have specified the correct account, password, character and game instance.",
                     )
-                    self.disconnect()
+                    self.do_disconnect()
 
     def connect(self) -> None:
         if self.state != EAccessState.Disconnected:
@@ -230,12 +245,14 @@ class EAccessClient(QThread):
 
         if not self._eaccess_host or not self._eaccess_port:
             self._logger.error("Missing Eaccess host and/or port.")
+            return
 
         self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
         if not self._socket.waitForEncrypted(3000):
             self._logger.error(
                 f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
             )
+            return
 
         self._logger.debug("connect: end")
 
@@ -257,7 +274,7 @@ class EAccessClient(QThread):
 
         self._logger.debug("authenticate: end")
 
-    def disconnect(self) -> None:
+    def do_disconnect(self) -> None:
         if self.state == EAccessState.Disconnected or not self._socket.isOpen():
             self._logger.debug("disconnect: already disconnected")
             return
@@ -277,15 +294,14 @@ class EAccessClient(QThread):
         self._logger.debug("wait_for_login_key: begin")
 
         loop = QEventLoop()
+        self.disconnected.connect(loop.quit)
         QTimer.singleShot(timeout, loop.quit)
+        loop.exec()
+        self.disconnected.disconnect(loop.quit)
 
-        while not self._variables.get("internal", "login_key", ""):
-            loop.exec()
-            if self._variables.get("internal", "login_key", ""):
-                self._logger.debug("wait_for_login_key: end")
-                return True
-        self._logger.debug("wait_for_login_key: end")
-        return False
+        result = bool(self._variables.get("internal", "login_key", ""))
+        self._logger.debug(f"wait_for_login_key: end result({result})")
+        return result
 
 
 class GameState(Enum):
@@ -409,11 +425,12 @@ class GameClient(QThread):
             self._logger.error(
                 f"Failed to connect to {self._game_host}:{self._game_port}.",
             )
+            return
 
         self.state = GameState.SendSettings
         self._logger.debug("connect: end")
 
-    def disconnect(self) -> None:
+    def do_disconnect(self) -> None:
         if self.state == GameState.Disconnected or not self._socket.isOpen():
             self._logger.debug("disconnect: already disconnected")
             return
@@ -605,7 +622,7 @@ class GameParser(QObject):
             bgcolor = self._config.get("presets", f"{style_id}.bgcolor", "")
 
             self._buffer = re.sub(
-                rf"""<style id=['"]{id}['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
+                rf"""<style id=['"]{re.escape(id)}['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1</span><br/>""",
                 self._buffer,
                 flags=re.DOTALL,
@@ -630,7 +647,7 @@ class GameParser(QObject):
                 end = "<br/>"
 
             self._buffer = re.sub(
-                rf"""<preset id=['"]{id}['"]>\n?(.*?)\n?</preset>\s*\n?""",
+                rf"""<preset id=['"]{re.escape(id)}['"]>\n?(.*?)\n?</preset>\s*\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1{end}</span>""",
                 self._buffer,
                 flags=re.DOTALL,

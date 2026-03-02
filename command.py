@@ -40,7 +40,7 @@ class CommandParser:
                     )
                     return
 
-                self._variables.set("temporary", "login_key", b"")
+                self._variables.set("internal", "login_key", "")
 
                 account, password, character, instance = args_list
                 self._variables.set("temporary", "account", account)
@@ -72,12 +72,12 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
 
             elif command == "#disconnect":
-                self._window.eaccess_client.disconnect()
-                self._window.game_client.disconnect()
+                self._window.eaccess_client.do_disconnect()
+                self._window.game_client.do_disconnect()
 
             elif command == "#exit":
-                self._window.eaccess_client.disconnect()
-                self._window.game_client.disconnect()
+                self._window.eaccess_client.do_disconnect()
+                self._window.game_client.do_disconnect()
                 self._window.close()
 
             elif command == "#layout":

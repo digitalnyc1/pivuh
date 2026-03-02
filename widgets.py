@@ -617,7 +617,7 @@ class QIndicators(QWidget):
         Bleeding = 1
         Dead = 2
         Hidden = 4
-        Invivisble = 8
+        Invisible = 8
         Joined = 16
         Kneeling = 32
         Prone = 64
@@ -780,7 +780,7 @@ class QIndicators(QWidget):
         )
 
         self.invisible.setVisible(
-            bool(indicators & QIndicators.IndicatorsFlag.Invivisble),
+            bool(indicators & QIndicators.IndicatorsFlag.Invisible),
         )
 
         self.joined.setVisible(

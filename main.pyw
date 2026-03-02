@@ -4,7 +4,6 @@ import html
 import logging
 import os
 import sys
-import time
 
 from PyQt6.QtCore import (
     Qt,
@@ -267,8 +266,9 @@ class MainWindow(QMainWindow):
         self.status_label[0].setText("Disconnected")
 
         self.status_bar = self.statusBar()
-        for status_label in self.status_label:
-            self.status_bar.addWidget(status_label)
+        if self.status_bar:
+            for status_label in self.status_label:
+                self.status_bar.addWidget(status_label)
 
         # "Windows" aka Dock Widgets
         self.windows = {}
@@ -345,7 +345,7 @@ class MainWindow(QMainWindow):
             "IconDEAD": self.indicators.IndicatorsFlag.Dead,
             "IconKNEELING": self.indicators.IndicatorsFlag.Kneeling,
             "IconHIDDEN": self.indicators.IndicatorsFlag.Hidden,
-            "IconINVISIBLE": self.indicators.IndicatorsFlag.Invivisble,
+            "IconINVISIBLE": self.indicators.IndicatorsFlag.Invisible,
             "IconJOINED": self.indicators.IndicatorsFlag.Joined,
             "IconPRONE": self.indicators.IndicatorsFlag.Prone,
             "IconSITTING": self.indicators.IndicatorsFlag.Sitting,
@@ -356,8 +356,11 @@ class MainWindow(QMainWindow):
 
         self.input.setFocus()
 
-    def keyReleaseEvent(self, event: QKeyEvent) -> None:
-        k = event.key()
+    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
+        if not a0:
+            return
+
+        k = a0.key()
 
         if k != Qt.Key.Key_Control:
             # Don't setFocus() if only the Ctrl key is pressed
@@ -366,10 +369,13 @@ class MainWindow(QMainWindow):
 
         if not self.input.hasFocus():
             # Echo the key press event to the input box
-            self.input.keyReleaseEvent(event)
+            self.input.keyReleaseEvent(a0)
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        k = event.key()
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if not a0:
+            return
+
+        k = a0.key()
 
         if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             # Key Press: Enter
@@ -381,13 +387,19 @@ class MainWindow(QMainWindow):
 
         if not self.input.hasFocus():
             # Echo the key press event to the input box
-            self.input.keyPressEvent(event)
+            self.input.keyPressEvent(a0)
 
-    def closeEvent(self, event: QEvent) -> None:
-        self.eaccess_client.disconnect()
-        self.game_client.disconnect()
-        time.sleep(1)
-        event.accept()
+    def closeEvent(self, a0: QEvent | None) -> None:
+        if not a0:
+            return
+
+        self.eaccess_client.do_disconnect()
+        self.game_client.do_disconnect()
+        self.eaccess_client.quit()
+        self.eaccess_client.wait()
+        self.game_client.quit()
+        self.game_client.wait()
+        a0.accept()
 
     def _on_eaccess_connected(self, message: str) -> None:
         if message:
@@ -464,7 +476,7 @@ class MainWindow(QMainWindow):
                 self._logger.error(f"_on_update_indicators: Invalid indicator: {indicator}")
         self.indicators.update_indicators(indicators_flags)
 
-    def _on_update_minivitals(self, id: str, value: str, text: str) -> None:
+    def _on_update_minivitals(self, id: str, value: int, text: str) -> None:
         self._logger.debug(f"_on_update_minivitals: id({id}) value({value}) text({text})")
         if id not in self.minivitals:
             self.minivitals[id] = QMiniVital(id, value, text)
