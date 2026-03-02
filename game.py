@@ -206,7 +206,7 @@ class EAccessClient(QThread):
                             "game_port",
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
-                        self._variables.set("internal", "login_key", self._login_key)
+                        self._variables.set("internal", "login_key", self._login_key.decode("ascii"))
                         self.disconnect()
 
                 elif data.startswith(b"X\t"):
@@ -385,8 +385,8 @@ class GameClient(QThread):
         self._logger.debug("authenticate: begin")
 
         ident = self._config.get("client", "ident", "")
-        self._socket.write(b"<c>" + self._login_key + b"\n")
-        self._socket.write(b"<c>" + ident + b"\n")
+        self._socket.write(f"<c>{self._login_key}\n".encode("ascii"))
+        self._socket.write(f"<c>{ident}\n".encode("ascii"))
         self._socket.flush()
         self._logger.debug("authenticate: end")
 
@@ -399,7 +399,7 @@ class GameClient(QThread):
 
         self._game_host = self._variables.get("temporary", "game_host", "")
         self._game_port = self._variables.get("temporary", "game_port", 0)
-        self._login_key = self._variables.get("internal", "login_key", b"")
+        self._login_key = self._variables.get("internal", "login_key", "")
         if not self._game_host or not self._game_port or not self._login_key:
             self._logger.error("Missing game host, game port or login key.")
             return

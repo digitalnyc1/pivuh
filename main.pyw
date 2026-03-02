@@ -43,6 +43,7 @@ from icons import (
     Icons,
     ICONS_DIR,
 )
+from layout import LayoutConfig
 from variables import Variables
 from widgets import (
     QCompass,
@@ -314,7 +315,12 @@ class MainWindow(QMainWindow):
         # Finish main window components
         self.setCentralWidget(main_frame)
 
-        self.restoreState(self._config.get("client", "state", b""))
+        _layout = LayoutConfig()
+        _geometry, _state = _layout.load()
+        if _geometry:
+            self.restoreGeometry(_geometry)
+        if _state:
+            self.restoreState(_state)
 
         self.setWindowTitle(f"[Disconnected] - {client_name} v{client_version}")
 

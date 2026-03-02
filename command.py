@@ -5,6 +5,7 @@ from PyQt6.QtGui import QTextCursor
 
 from config import Config
 from game import GameState
+from layout import LayoutConfig
 from variables import Variables
 
 
@@ -73,15 +74,20 @@ class CommandParser:
                     return
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
-                    self._window.restoreState(self._config.get("client", "state", b""))
+                    layout = LayoutConfig()
+                    geometry, state = layout.load()
+                    if geometry:
+                        self._window.restoreGeometry(geometry)
+                    if state:
+                        self._window.restoreState(state)
                 elif subcommand.startswith("s"):
                     geometry = self._window.saveGeometry()
-                    self._config.set("client", "geometry", geometry)
                     self._logger.debug(f"MainWindow geometry: {geometry}")
 
                     state = self._window.saveState()
-                    self._config.set("client", "state", state)
                     self._logger.debug(f"MainWindow state: {state}")
+
+                    LayoutConfig().save(geometry, state)
                 else:
                     self._window.main.insertHtml(usage)
 
