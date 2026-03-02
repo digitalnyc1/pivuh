@@ -318,16 +318,43 @@ class MainWindow(QMainWindow):
 
         self.main.insertHtml(f"{client_name} v{client_version}", ignore_visiblity=True)
 
+        # Pre-build lookup dicts so signal handlers don't rebuild them on every call
+        self._direction_mapping = {
+            "n": self.compass.CompassFlag.North,
+            "ne": self.compass.CompassFlag.NorthEast,
+            "e": self.compass.CompassFlag.East,
+            "se": self.compass.CompassFlag.SouthEast,
+            "s": self.compass.CompassFlag.South,
+            "sw": self.compass.CompassFlag.SouthWest,
+            "w": self.compass.CompassFlag.West,
+            "nw": self.compass.CompassFlag.NorthWest,
+            "out": self.compass.CompassFlag.Out,
+            "up": self.compass.CompassFlag.Up,
+            "down": self.compass.CompassFlag.Down,
+        }
+        self._indicators_mapping = {
+            "IconBLEEDING": self.indicators.IndicatorsFlag.Bleeding,
+            "IconDEAD": self.indicators.IndicatorsFlag.Dead,
+            "IconKNEELING": self.indicators.IndicatorsFlag.Kneeling,
+            "IconHIDDEN": self.indicators.IndicatorsFlag.Hidden,
+            "IconINVISIBLE": self.indicators.IndicatorsFlag.Invivisble,
+            "IconJOINED": self.indicators.IndicatorsFlag.Joined,
+            "IconPRONE": self.indicators.IndicatorsFlag.Prone,
+            "IconSITTING": self.indicators.IndicatorsFlag.Sitting,
+            "IconSTANDING": self.indicators.IndicatorsFlag.Standing,
+            "IconSTUNNED": self.indicators.IndicatorsFlag.Stunned,
+            "IconWEBBED": self.indicators.IndicatorsFlag.Webbed,
+        }
+
         self.input.setFocus()
 
     def keyReleaseEvent(self, event: QKeyEvent) -> None:
         k = event.key()
 
-        if k != 16777249:
+        if k != Qt.Key.Key_Control:
             # Don't setFocus() if only the Ctrl key is pressed
             # Interferes with copying text from QTextEdit widgets
             self.input.setFocus()
-            pass
 
         if not self.input.hasFocus():
             # Echo the key press event to the input box
@@ -336,7 +363,7 @@ class MainWindow(QMainWindow):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         k = event.key()
 
-        if k == 16777220 or k == 16777221:
+        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             # Key Press: Enter
             text = self.input.text()
             if text != "":
@@ -406,48 +433,20 @@ class MainWindow(QMainWindow):
 
     def _on_update_compass(self, directions: list) -> None:
         self._logger.debug(f"_on_update_compass: directions({directions})")
-        direction_mapping = {
-            "n": self.compass.CompassFlag.North,
-            "ne": self.compass.CompassFlag.NorthEast,
-            "e": self.compass.CompassFlag.East,
-            "se": self.compass.CompassFlag.SouthEast,
-            "s": self.compass.CompassFlag.South,
-            "sw": self.compass.CompassFlag.SouthWest,
-            "w": self.compass.CompassFlag.West,
-            "nw": self.compass.CompassFlag.NorthWest,
-            "out": self.compass.CompassFlag.Out,
-            "up": self.compass.CompassFlag.Up,
-            "down": self.compass.CompassFlag.Down,
-        }
-
         direction_flags = 0
         for direction in directions:
-            if direction in direction_mapping:
-                direction_flags |= direction_mapping[direction]
+            if direction in self._direction_mapping:
+                direction_flags |= self._direction_mapping[direction]
             else:
                 self._logger.error(f"_on_update_compass: Invalid compass direction: {direction}")
         self.compass.update_compass(direction_flags)
 
     def _on_update_indicators(self, indicators: list) -> None:
         self._logger.debug(f"_on_update_indicators: indicators({indicators})")
-        indicators_mapping = {
-            "IconBLEEDING": self.indicators.IndicatorsFlag.Bleeding,
-            "IconDEAD": self.indicators.IndicatorsFlag.Dead,
-            "IconKNEELING": self.indicators.IndicatorsFlag.Kneeling,
-            "IconHIDDEN": self.indicators.IndicatorsFlag.Hidden,
-            "IconINVISIBLE": self.indicators.IndicatorsFlag.Invivisble,
-            "IconJOINED": self.indicators.IndicatorsFlag.Joined,
-            "IconPRONE": self.indicators.IndicatorsFlag.Prone,
-            "IconSITTING": self.indicators.IndicatorsFlag.Sitting,
-            "IconSTANDING": self.indicators.IndicatorsFlag.Standing,
-            "IconSTUNNED": self.indicators.IndicatorsFlag.Stunned,
-            "IconWEBBED": self.indicators.IndicatorsFlag.Webbed,
-        }
-
         indicators_flags = 0
         for indicator in indicators:
-            if indicator in indicators_mapping:
-                indicators_flags |= indicators_mapping[indicator]
+            if indicator in self._indicators_mapping:
+                indicators_flags |= self._indicators_mapping[indicator]
             else:
                 self._logger.error(f"_on_update_indicators: Invalid indicator: {indicator}")
         self.indicators.update_indicators(indicators_flags)
@@ -468,7 +467,7 @@ class MainWindow(QMainWindow):
         if window not in self.windows:
             return
 
-        if self.windows[window]["timestamp"]:
+        if self.windows[window].get("timestamp", False):
             timestamp = datetime.now().strftime("[%H:%M]&nbsp;")
             message = f"{timestamp}{message}"
 

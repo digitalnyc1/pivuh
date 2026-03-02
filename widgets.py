@@ -384,30 +384,26 @@ class QCompass(QWidget):
         self.setStyleSheet("padding: 0px; margin: 0px;")
         self.setLayout(layout)
 
+    _DIRECTION_COMMANDS = {
+        CompassFlag.North: "north",
+        CompassFlag.NorthEast: "northeast",
+        CompassFlag.East: "east",
+        CompassFlag.SouthEast: "southeast",
+        CompassFlag.South: "south",
+        CompassFlag.SouthWest: "southwest",
+        CompassFlag.West: "west",
+        CompassFlag.NorthWest: "northwest",
+        CompassFlag.Out: "out",
+        CompassFlag.Up: "up",
+        CompassFlag.Down: "down",
+    }
+
     def _on_compass_button_click(self, direction: CompassFlag) -> None:
         self._logger.debug(f"_on_compass_button_click({direction})")
-        if direction & QCompass.CompassFlag.North:
-            self._window.command.Parse("north")
-        elif direction & QCompass.CompassFlag.NorthEast:
-            self._window.command.Parse("northeast")
-        elif direction & QCompass.CompassFlag.East:
-            self._window.command.Parse("east")
-        elif direction & QCompass.CompassFlag.SouthEast:
-            self._window.command.Parse("southeast")
-        elif direction & QCompass.CompassFlag.South:
-            self._window.command.Parse("south")
-        elif direction & QCompass.CompassFlag.SouthWest:
-            self._window.command.Parse("southwest")
-        elif direction & QCompass.CompassFlag.West:
-            self._window.command.Parse("west")
-        elif direction & QCompass.CompassFlag.NorthWest:
-            self._window.command.Parse("northwest")
-        elif direction & QCompass.CompassFlag.Out:
-            self._window.command.Parse("out")
-        elif direction & QCompass.CompassFlag.Up:
-            self._window.command.Parse("up")
-        elif direction & QCompass.CompassFlag.Down:
-            self._window.command.Parse("down")
+        for flag, cmd in QCompass._DIRECTION_COMMANDS.items():
+            if direction & flag:
+                self._window.command.Parse(cmd)
+                return
 
     def update_compass(self, directions: CompassFlag) -> None:
         self.north_active.setVisible(directions & QCompass.CompassFlag.North)
@@ -563,11 +559,10 @@ class QCustomTextEdit(QTextEdit):
 
 
 class QCustomTimer(QObject):
-    _callbacks = []
-
     def __init__(self, interval: int = 1000) -> None:
         super().__init__()
         self.interval = interval
+        self._callbacks = []
         self.timer = QTimer()
         self.timer.timeout.connect(self.tick)
 
@@ -664,7 +659,7 @@ class QIndicators(QWidget):
             ),
         )
 
-        self.invisible = QIndicatorLabel("Insivible")
+        self.invisible = QIndicatorLabel("Invisible")
         self.invisible.setPixmap(
             Icons().InvisibleIcon.pixmap(
                 QSize(
@@ -853,6 +848,7 @@ class QTimerBar(QProgressBar):
 
         self._logger = logging.getLogger(self.__class__.__name__)
 
+        self._type = type
         self._current_seconds = 0
         self._total_seconds = 0
 
@@ -913,9 +909,9 @@ class QTimerBar(QProgressBar):
             f"update: _total_seconds({self._total_seconds}) _current_seconds({self._current_seconds}) seconds_left({seconds_left})",
         )
 
-        if type == self.TimerBarType.RoundTime:
+        if self._type == self.TimerBarType.RoundTime:
             self._config.set("temporary", "roundtime", seconds_left)
-        elif type == self.TimerBarType.CastTime:
+        elif self._type == self.TimerBarType.CastTime:
             self._config.set("temporary", "casttime", seconds_left)
 
         if seconds_left <= 0:

@@ -1,0 +1,68 @@
+name: Windows Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on pushes to tags like v1.0.0
+
+jobs:
+  build:
+    runs-on: windows-latest # Use a Windows runner
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -r requirements.txt
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller main.pyw --clean --onefile --name "Pivuh" --icon=images\pivuh.ico --add-data "images\*:images"
+
+    - name: Package artifacts
+      run: |
+        mkdir release
+        copy dist\Pivuh.exe release\Pivuh-${{ github.ref_name }}-win-x64.exe
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-exe
+        path: release/*.exe
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: ./release
+
+      - name: Generate checksums
+        run: |
+          sha256sum release/* > release/sha256sum.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            release/*.exe
+            release/sha256sum.txt
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

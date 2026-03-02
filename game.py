@@ -125,8 +125,9 @@ class EAccessClient(QThread):
                     self.message_received.emit(
                         f"Received invalid hash key from {self._eaccess_host}.",
                     )
-                    self.state == EAccessState.InvalidResponse
+                    self.state = EAccessState.InvalidResponse
                     self.disconnect()
+                    return
                 self.state = EAccessState.Unauthenticated
                 a_cmd = b"A\t" + self._username + b"\t" + self._hash_password() + b"\n"
                 self._socket.write(a_cmd)
@@ -146,13 +147,14 @@ class EAccessClient(QThread):
                     self.message_received.emit(f"Login failed: {reason}.")
                     self.disconnect()
 
-                self.state = EAccessState.Authenticated
-                data, _, _ = data.partition(b"\n")
-                _, _, _, self._login_key, _ = data.split(b"\t")
+                else:
+                    self.state = EAccessState.Authenticated
+                    data, _, _ = data.partition(b"\n")
+                    _, _, _, self._login_key, _ = data.split(b"\t")
 
-                g_cmd = f"G\t{self._instance}\n".encode("ascii")
-                self._socket.write(g_cmd)
-                self._socket.flush()
+                    g_cmd = f"G\t{self._instance}\n".encode("ascii")
+                    self._socket.write(g_cmd)
+                    self._socket.flush()
 
             elif self.state == EAccessState.Authenticated:
                 if data.startswith(b"G\t"):
@@ -190,21 +192,21 @@ class EAccessClient(QThread):
                         self._logger.error("Login failed.")
                         self.message_received.emit("Login failed.")
                         self.disconnect()
-
-                    self._logger.debug("_read_data: login successful")
-                    _, _, _, _, _, _, _, game_host, game_port, _ = data.split(b"\t")
-                    self._config.set(
-                        "game",
-                        "game.host",
-                        game_host.decode("ascii").replace("GAMEHOST=", ""),
-                    )
-                    self._config.set(
-                        "game",
-                        "game.port",
-                        int(game_port.decode("ascii").replace("GAMEPORT=", "")),
-                    )
-                    self._config.set("temporary", "login_key", self._login_key)
-                    self.disconnect()
+                    else:
+                        self._logger.debug("_read_data: login successful")
+                        _, _, _, _, _, _, _, game_host, game_port, _ = data.split(b"\t")
+                        self._config.set(
+                            "game",
+                            "game.host",
+                            game_host.decode("ascii").replace("GAMEHOST=", ""),
+                        )
+                        self._config.set(
+                            "game",
+                            "game.port",
+                            int(game_port.decode("ascii").replace("GAMEPORT=", "")),
+                        )
+                        self._config.set("temporary", "login_key", self._login_key)
+                        self.disconnect()
 
                 elif data.startswith(b"X\t"):
                     self._logger.error(
@@ -238,7 +240,7 @@ class EAccessClient(QThread):
 
     def authenticate(self) -> None:
         if not self._socket.isOpen():
-            self.logger.error("Failed to authenticate: Not connected.")
+            self._logger.error("Failed to authenticate: Not connected.")
             return
 
         self._logger.debug("authenticate: begin")
@@ -367,7 +369,7 @@ class GameClient(QThread):
 
     def authenticate(self) -> None:
         if not self._socket.isOpen():
-            self.logger.error("Failed to authenticate: Not connected.")
+            self._logger.error("Failed to authenticate: Not connected.")
             return
 
         if self.state == GameState.Connected:
@@ -417,7 +419,7 @@ class GameClient(QThread):
         self._logger.debug("disconnect: begin")
 
         self._socket.disconnectFromHost()
-        if self._socket.state() == QSslSocket.SocketState.ConnectedState:
+        if self._socket.state() == QTcpSocket.SocketState.ConnectedState:
             self._socket.waitForDisconnected(3000)
 
         self.state = GameState.Disconnected
@@ -1007,7 +1009,7 @@ class GameParser(QObject):
         )
         self._buffer = re.sub(
             r"""<d cmd=['"](.*?)['"]>(.*?)</d>""",
-            rf"""<a href="\1" style="color: {color}; background-color: {bgcolor};><font color="{color}">\2</a>""",
+            rf"""<a href="\1" style="color: {color}; background-color: {bgcolor};"><font color="{color}">\2</a>""",
             self._buffer,
             flags=re.DOTALL,
         )
@@ -1098,7 +1100,7 @@ class GameParser(QObject):
         ):
             value = int(groups.group(1))
             casttime = value - gametime
-            self._config.set("temporary", "castime", casttime)
+            self._config.set("temporary", "casttime", casttime)
             self._logger.debug(
                 f"casttime: value({value}) gametime({gametime}) castime({casttime})",
             )
@@ -1198,7 +1200,7 @@ class MindState:
         "perusing": 2,
         "learning": 3,
         "thoughtful": 4,
-        "thinking:": 5,
+        "thinking": 5,
         "considering": 6,
         "pondering": 7,
         "ruminating": 8,

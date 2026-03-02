@@ -73,7 +73,7 @@ class CommandParser:
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
                     self._window.restoreState(self._config.get("client", "state", b""))
-                if subcommand.startswith("s"):
+                elif subcommand.startswith("s"):
                     geometry = self._window.saveGeometry()
                     self._config.set("client", "geometry", geometry)
                     self._logger.debug(f"MainWindow geometry: {geometry}")
