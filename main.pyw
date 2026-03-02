@@ -24,7 +24,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QSplashScreen,
     QVBoxLayout,
@@ -49,9 +48,9 @@ from widgets import (
     QCustomTextEdit,
     QCustomTimer,
     QCustomToolBar,
+    QHistoryLineEdit,
     QIndicators,
     QMiniVital,
-    QScriptButton,
     QTimerBar,
 )
 
@@ -125,12 +124,10 @@ class MainWindow(QMainWindow):
         self.script_toolbar.setAccessibleDescription("Scripts Toolbar")
         self.script_toolbar.setObjectName("ScriptsToolBar")
         self.script_toolbar.setWindowTitle("Scripts")
-        self.script_toolbar.addWidget(QScriptButton("test1.cmd"))
-        self.script_toolbar.addWidget(QScriptButton("test2.cmd"))
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.script_toolbar)
 
         # Toolbars: Input toolbar
-        self.input = QLineEdit()
+        self.input = QHistoryLineEdit()
         self.input.setFrame(False)
 
         self.roundtime = QTimerBar(QTimerBar.TimerBarType.RoundTime)
@@ -367,6 +364,7 @@ class MainWindow(QMainWindow):
             # Key Press: Enter
             text = self.input.text()
             if text != "":
+                self.input.add_to_history(text)
                 self.command.Parse(text)
             self.input.clear()
 

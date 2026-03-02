@@ -12,6 +12,7 @@ from PyQt6.QtGui import (
     QAction,
     QContextMenuEvent,
     QDesktopServices,
+    QKeyEvent,
     QMouseEvent,
     QTextCursor,
     QTextOption,
@@ -22,6 +23,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMenu,
     QProgressBar,
     QSizePolicy,
@@ -965,3 +967,47 @@ class QScriptButton(QToolButton):
 
     def abort_action(self) -> None:
         print(f"DEBUG: QScriptButton script({self._script}) action(abort)")
+
+
+class QHistoryLineEdit(QLineEdit):
+    """A QLineEdit with up/down arrow command history navigation."""
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._config = Config()
+        self._history: list[str] = []
+        self._history_pos: int = 0
+        self._current_input: str = ""
+
+    def add_to_history(self, text: str) -> None:
+        """Add a command to history and reset navigation position."""
+        max_length = self._config.get("client", "input.history_length", 100)
+        if text and (not self._history or self._history[-1] != text):
+            self._history.append(text)
+            if len(self._history) > max_length:
+                self._history.pop(0)
+        self._history_pos = len(self._history)
+        self._current_input = ""
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        k = event.key()
+
+        if k == Qt.Key.Key_Up:
+            if self._history:
+                if self._history_pos == len(self._history):
+                    self._current_input = self.text()
+                if self._history_pos > 0:
+                    self._history_pos -= 1
+                    self.setText(self._history[self._history_pos])
+                    self.end(False)
+        elif k == Qt.Key.Key_Down:
+            if self._history_pos < len(self._history):
+                self._history_pos += 1
+                if self._history_pos == len(self._history):
+                    self.setText(self._current_input)
+                else:
+                    self.setText(self._history[self._history_pos])
+                self.end(False)
+        else:
+            super().keyPressEvent(event)
