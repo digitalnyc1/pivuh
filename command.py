@@ -1,8 +1,6 @@
 import logging
 import re
 
-from PyQt6.QtGui import QTextCursor
-
 from config import Config
 from game import GameState
 from layout import LayoutConfig
@@ -16,7 +14,7 @@ class CommandParser:
         self._config = Config()
         self._variables = Variables()
 
-        self._window = self._variables.get("internal", "main_window", None)
+        self._window = self._variables.get("widgets", "main_window", None)
 
     def Parse(self, input: str) -> None:
         input = re.sub(r"\s+", " ", input.strip())
@@ -40,11 +38,11 @@ class CommandParser:
                     )
                     return
 
-                self._variables.set("internal", "login_key", "")
+                self._variables.set("protected", "login_key", "")
 
                 account, password, character, instance = args_list
                 self._variables.set("temporary", "account", account)
-                self._variables.set("internal", "password", password)
+                self._variables.set("protected", "password", password)
                 self._variables.set("temporary", "character", character)
                 self._variables.set("temporary", "instance", instance)
 
@@ -147,10 +145,4 @@ class CommandParser:
                 self._window.main.insertHtml(
                     f"""<span style="color: {color}; background-color: {bgcolor};">{input}</span>""",
                 )
-
                 self._window.game_client.send(input)
-
-                self._window.main.textCursor().movePosition(
-                    QTextCursor.MoveOperation.Left,
-                    QTextCursor.MoveMode.MoveAnchor,
-                )

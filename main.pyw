@@ -65,7 +65,7 @@ class MainWindow(QMainWindow):
         self._config = Config()
         self._variables = Variables()
 
-        self._variables.set("internal", "main_window", self)
+        self._variables.set("widgets", "main_window", self)
 
         self.setContentsMargins(6, 6, 6, 6)
         self.update_style()
@@ -439,12 +439,13 @@ class MainWindow(QMainWindow):
         self.status_label[0].setText("Disconnected")
 
         self.reset_compass()
+        self.reset_indicators()
         self.reset_minivitals()
 
     def _on_game_message_received(self, message: str) -> None:
         widget = self._variables.get("widgets", "raw", None)
         if widget:
-            widget.insertHtml(f"{repr(html.escape(message))}<br/>")
+            widget.insertHtml(f"{html.escape(message)}<br/>")
         self.game_parser.Parse(message)
 
     def _on_clear_window(self, window: str) -> None:
@@ -505,9 +506,22 @@ class MainWindow(QMainWindow):
         message = message.replace("<br/><pre", "<pre")
 
         self._logger.debug(f"_on_update_window: window({window}) message({message})")
-        widget = self._variables.get("widgets", window, None)
-        if widget:
-            widget.insertHtml(message)
+
+        # Follow the if_closed chain until we find a visible widget
+        target = window
+        visited: set = set()
+        while target and target not in visited:
+            visited.add(target)
+            widget = self._variables.get("widgets", target, None)
+            if widget and widget.isVisible():
+                widget.insertHtml(message, ignore_visiblity=True)
+                return
+            if target not in self.windows:
+                break
+            if_closed = self.windows[target].get("if_closed", None)
+            if not if_closed:
+                break
+            target = if_closed
 
     def _on_unlock_toolbars(self, checked) -> None:
         self._logger.debug(f"_on_unlock_toolbars")
@@ -525,13 +539,12 @@ class MainWindow(QMainWindow):
         self._on_update_indicators([])
 
     def reset_minivitals(self) -> None:
-        for id, minivital in self.minivitals.items():
-            self._logger.debug(f"reset_minivitals: destory {id}")
-            minivital.destroy()
+        self._logger.debug(f"reset_minivitals: begin")
         self.minivitals_toolbar.clear()
         self.minivitals = {}
         self.minivitals["health"] = QMiniVital("health", 0, "Health 0%")
         self.minivitals_toolbar.addWidget(self.minivitals["health"])
+        self._logger.debug(f"reset_minivitals: end")
 
     def update_style(self) -> None:
         fontname = self._config.get("presets", "ui.fontname")
@@ -555,7 +568,7 @@ class DebugWindowHandler(logging.Handler):
 
     def emit(self, record: LogRecord) -> None:
         try:
-            msg = repr(html.escape(self.format(record)))
+            msg = html.escape(self.format(record))
             widget = self._variables.get("widgets", "debug", None)
             if widget:
                 widget.insertHtml(f"{msg}<br/>")

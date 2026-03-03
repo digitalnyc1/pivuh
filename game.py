@@ -40,8 +40,6 @@ class EAccessClient(QThread):
     disconnected = pyqtSignal(str)
     message_received = pyqtSignal(str)
 
-    state = EAccessState.Disconnected
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -50,6 +48,16 @@ class EAccessClient(QThread):
 
         self._config = Config()
         self._variables = Variables()
+
+        self.state = EAccessState.Disconnected
+        self._eaccess_host: str = ""
+        self._eaccess_port: int = 0
+        self._hash_key: bytes = b""
+        self._account: bytes = b""
+        self._password: bytes = b""
+        self._character: bytes = b""
+        self._instance: str = ""
+        self._login_key: bytes = b""
 
         ssl_config = QSslConfiguration.defaultConfiguration()
         ssl_config.setPeerVerifyMode(QSslSocket.PeerVerifyMode.VerifyNone)
@@ -83,9 +91,10 @@ class EAccessClient(QThread):
                     f"_handle_ssl_errors: ignoring expected SSL error: {error.error().name}",
                 )
                 self._socket.ignoreSslErrors()
-            self._logger.error(
-                f"Eaccess SSL socket error: {error.error().name}({error.error().value}): {error.errorString()}",
-            )
+            else:
+                self._logger.error(
+                    f"Eaccess SSL socket error: {error.error().name}({error.error().value}): {error.errorString()}",
+                )
 
         self._logger.debug("_handle_ssl_errors: end")
 
@@ -109,6 +118,7 @@ class EAccessClient(QThread):
     def _on_disconnected(self) -> None:
         self._logger.debug("_on_disconnected: begin")
 
+        self.do_disconnect()
         self.disconnected.emit(f"Connection to {self._eaccess_host} closed.")
 
         self._logger.debug("_on_disconnected: end")
@@ -221,7 +231,7 @@ class EAccessClient(QThread):
                             "game_port",
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
-                        self._variables.set("internal", "login_key", self._login_key.decode("ascii"))
+                        self._variables.set("protected", "login_key", self._login_key.decode("ascii"))
                         self.do_disconnect()
 
                 elif data.startswith(b"X\t"):
@@ -264,7 +274,7 @@ class EAccessClient(QThread):
         self._logger.debug("authenticate: begin")
 
         self._account = self._variables.get("temporary", "account", "").encode("ascii")
-        self._password = self._variables.get("internal", "password", "").encode("ascii")
+        self._password = self._variables.get("protected", "password", "").encode("ascii")
         self._character = self._variables.get("temporary", "character", "").encode("ascii")
         self._instance = self._variables.get("temporary", "instance", "")
 
@@ -285,7 +295,7 @@ class EAccessClient(QThread):
         if self._socket.state() == QSslSocket.SocketState.ConnectedState:
             self._socket.waitForDisconnected(3000)
 
-        self._variables.set("internal", "password", "")
+        self._variables.set("protected", "password", "")
         self.state = EAccessState.Disconnected
 
         self._logger.debug("disconnect: end")
@@ -299,7 +309,7 @@ class EAccessClient(QThread):
         loop.exec()
         self.disconnected.disconnect(loop.quit)
 
-        result = bool(self._variables.get("internal", "login_key", ""))
+        result = bool(self._variables.get("protected", "login_key", ""))
         self._logger.debug(f"wait_for_login_key: end result({result})")
         return result
 
@@ -316,10 +326,6 @@ class GameClient(QThread):
     message_received = pyqtSignal(str)
     update_vitals = pyqtSignal(str)
 
-    state = GameState.Disconnected
-
-    _write_buffer = ""
-
     def __init__(self) -> None:
         super().__init__()
 
@@ -328,6 +334,12 @@ class GameClient(QThread):
 
         self._config = Config()
         self._variables = Variables()
+
+        self.state = GameState.Disconnected
+        self._write_buffer: str = ""
+        self._game_host: str = ""
+        self._game_port: int = 0
+        self._login_key: str = ""
 
         self._socket = QTcpSocket(self)
         self._socket.connected.connect(self._on_connected)
@@ -348,6 +360,7 @@ class GameClient(QThread):
     def _on_disconnected(self) -> None:
         self._logger.debug("_on_disconnected: begin")
 
+        self.do_disconnect()
         self.disconnected.emit(f"Connection to {self._game_host} closed.")
 
         self._logger.debug("_on_disconnected: end")
@@ -367,6 +380,7 @@ class GameClient(QThread):
                     self.message_received.emit(
                         "Game server rejected the login key.  Please try again.",
                     )
+                    self.do_disconnect()
                     break
 
                 elif re.search(rb"<settingsInfo.*?/>", data, flags=re.DOTALL):
@@ -415,7 +429,7 @@ class GameClient(QThread):
 
         self._game_host = self._variables.get("temporary", "game_host", "")
         self._game_port = self._variables.get("temporary", "game_port", 0)
-        self._login_key = self._variables.get("internal", "login_key", "")
+        self._login_key = self._variables.get("protected", "login_key", "")
         if not self._game_host or not self._game_port or not self._login_key:
             self._logger.error("Missing game host, game port or login key.")
             return
@@ -462,8 +476,6 @@ class GameParser(QObject):
     update_roundtime = pyqtSignal(int)
     update_window = pyqtSignal(str, str)
 
-    _buffer = ""
-
     _room_attributes = [
         "roomname",
         "roomdesc",
@@ -480,7 +492,8 @@ class GameParser(QObject):
         self._config = Config()
         self._variables = Variables()
 
-        self._window = self._variables.get("internal", "main_window", None)
+        self._buffer = ""
+        self._window = self._variables.get("widgets", "main_window", None)
 
     def Parse(self, message: str) -> None:
         self._buffer += message
@@ -688,19 +701,21 @@ class GameParser(QObject):
 
         # <streamWindow/>
         for groups in re.finditer(
-            r"""<streamWindow id=['"](.*?)['"] title=['"](.*?)['"] subtitle=['"] - \[(.*?)\]['"].*?/>""",
+            r"""<streamWindow id=['"](.*?)['"] title=['"](.*?)['"] subtitle=['"] - \[(.*?)\](?:\s\((\d+)\))?['"].*?/>""",
             self._buffer,
             flags=re.DOTALL,
         ):
             id = groups.group(1)
             title = groups.group(2)
             subtitle = groups.group(3)
+            roomid = groups.group(4) or "**"
             self._logger.debug(
-                f"streamWindow: id({id}) title({title}) subtitle({subtitle})",
+                f"streamWindow: id({id}) title({title}) subtitle({subtitle}) roomid({roomid})",
             )
             if id == "room":
                 if subtitle:
                     self._variables.set("temporary", "roomname", subtitle)
+                    self._variables.set("temporary", "roomid", roomid)
                     update_room = True
 
         self._buffer = re.sub(
@@ -769,7 +784,7 @@ class GameParser(QObject):
                 self._logger.debug(f"guild({guild})")
 
         self._buffer = re.sub(
-            r"""<compDef.*?>.*?</compDef>\n?""",
+            r"""<compDef.*?/>\n?""",
             "",
             self._buffer,
             flags=re.DOTALL,
@@ -918,7 +933,7 @@ class GameParser(QObject):
                 content = re.sub(r"""<progressBar.*?/>""", "", content, flags=re.DOTALL)
             else:
                 self._logger.debug(
-                    f"dialogData: ignorging content with unsupported dialogData id: {id}",
+                    f"dialogData: ignoring content with unsupported dialogData id: {id}",
                 )
 
         # <dialogData></dialogData>
@@ -938,6 +953,7 @@ class GameParser(QObject):
         )
 
         # <indicator/>
+        has_indicator_update = bool(re.search(r"""<indicator""", self._buffer))
         indicators = []
         for groups in re.finditer(
             r"""<indicator id=['"](\w*)['"] visible=['"]y['"]/>""",
@@ -946,7 +962,7 @@ class GameParser(QObject):
         ):
             id = groups.group(1)
             indicators.append(id)
-        if indicators:
+        if has_indicator_update:
             self.update_indicators.emit(indicators)
 
         self._buffer = re.sub(
@@ -1029,7 +1045,7 @@ class GameParser(QObject):
         )
         self._buffer = re.sub(
             r"""<d cmd=['"](.*?)['"]>(.*?)</d>""",
-            rf"""<a href="\1" style="color: {color}; background-color: {bgcolor};"><font color="{color}">\2</a>""",
+            rf"""<a href="\1" style="color: {color}; background-color: {bgcolor};"><font color="{color}">\2</font></a>""",
             self._buffer,
             flags=re.DOTALL,
         )
@@ -1257,7 +1273,10 @@ class MindState:
         if key in cls._mapping:
             return cls._mapping[key]
 
-        key = int(key)
+        try:
+            key = int(key)
+        except ValueError:
+            return 0
         if 0 <= key <= 34:
             return key
 

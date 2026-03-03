@@ -62,7 +62,7 @@ class QCompass(QWidget):
         self._config = Config()
         self._variables = Variables()
 
-        self._window = self._variables.get("internal", "main_window", None)
+        self._window = self._variables.get("widgets", "main_window", None)
 
         icon_size = self._config.get("presets", "compass.iconsize", 16)
 
@@ -469,7 +469,7 @@ class QCustomTextEdit(QTextEdit):
         self._config = Config()
         self._variables = Variables()
 
-        self._window = self._variables.get("internal", "main_window", None)
+        self._window = self._variables.get("widgets", "main_window", None)
 
         self._id = id
 
@@ -517,6 +517,9 @@ class QCustomTextEdit(QTextEdit):
             context_menu.exec(e.globalPos())
 
     def insertHtml(self, text: str | None, ignore_visiblity: bool = False) -> None:
+        if text is None:
+            return
+
         if not ignore_visiblity and not self.isVisible():
             return
 
@@ -544,14 +547,8 @@ class QCustomTextEdit(QTextEdit):
             if self.anchor.startswith("http://") or self.anchor.startswith("https://"):
                 QDesktopServices.openUrl(QUrl(self.anchor))
             else:
-                if self._window.game_client.state == GameState.Connected:
-                    self._window.main.textCursor().movePosition(
-                        QTextCursor.MoveOperation.Left,
-                        QTextCursor.MoveMode.MoveAnchor,
-                    )
-                    self._window.main.insertHtml(self.anchor)
-                    self._window.main.moveCursor(QTextCursor.MoveOperation.End)
-                    self._window.game_client.send(self.anchor)
+                if self._window and self._window.game_client.state == GameState.Connected:
+                    self._window.command.Parse(self.anchor)
 
             QApplication.instance().setOverrideCursor(Qt.CursorShape.ArrowCursor)  # type: ignore[union-attr]
             self.anchor = ""
@@ -644,7 +641,7 @@ class QIndicators(QWidget):
         self._config = Config()
         self._variables = Variables()
 
-        self._window = self._variables.get("internal", "main_window", None)
+        self._window = self._variables.get("widgets", "main_window", None)
 
         icon_size = self._config.get("presets", "indicator.iconsize", 28)
 
@@ -761,7 +758,6 @@ class QIndicators(QWidget):
         layout = QHBoxLayout()
         layout.setSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.stretch(0)
         layout.addWidget(self.standing)
         layout.addWidget(self.kneeling)
         layout.addWidget(self.sitting)

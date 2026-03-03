@@ -7,7 +7,7 @@ VARIABLES: dict[str, dict] = {}
 
 # Variable groups listed here are kept only in memory and never written to disk.
 TRANSIENT_GROUPS: set[str] = {
-    "internal",
+    "protected",
     "temporary",
     "widgets",
 }
