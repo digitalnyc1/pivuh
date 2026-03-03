@@ -297,12 +297,14 @@ class MainWindow(QMainWindow):
 
         # Menu Bar
         menu = self.menuBar()
+        assert menu is not None
 
         file_exit_action = QAction("&Exit", self)
         file_exit_action.setCheckable(False)
         file_exit_action.triggered.connect(self.close)
 
         self.file_menu = menu.addMenu("&File")
+        assert self.file_menu is not None
         self.file_menu.addAction(file_exit_action)
 
         edit_unlock_toolbars_action = QAction("&Unlock Toolbars", self)
@@ -310,6 +312,7 @@ class MainWindow(QMainWindow):
         edit_unlock_toolbars_action.triggered.connect(self._on_unlock_toolbars)
 
         self.edit_menu = menu.addMenu("&Edit")
+        assert self.edit_menu is not None
         self.edit_menu.addAction(edit_unlock_toolbars_action)
 
         # Finish main window components
@@ -458,7 +461,7 @@ class MainWindow(QMainWindow):
 
     def _on_update_compass(self, directions: list) -> None:
         self._logger.debug(f"_on_update_compass: directions({directions})")
-        direction_flags = 0
+        direction_flags = self.compass.CompassFlag(0)
         for direction in directions:
             if direction in self._direction_mapping:
                 direction_flags |= self._direction_mapping[direction]
@@ -468,7 +471,7 @@ class MainWindow(QMainWindow):
 
     def _on_update_indicators(self, indicators: list) -> None:
         self._logger.debug(f"_on_update_indicators: indicators({indicators})")
-        indicators_flags = 0
+        indicators_flags = self.indicators.IndicatorsFlag(0)
         for indicator in indicators:
             if indicator in self._indicators_mapping:
                 indicators_flags |= self._indicators_mapping[indicator]
@@ -482,7 +485,7 @@ class MainWindow(QMainWindow):
             self.minivitals[id] = QMiniVital(id, value, text)
             self.minivitals_toolbar.addWidget(self.minivitals[id])
         else:
-            self.minivitals[id].update(value, text)
+            self.minivitals[id].do_update(value, text)
 
     def _on_update_roundtime(self, seconds: int) -> None:
         self._logger.debug(f"_on_update_roundtime: seconds({seconds})")
@@ -540,8 +543,8 @@ class MainWindow(QMainWindow):
         self.setFont(font)
 
     def timerbars_callback(self):
-        self.casttime.update()
-        self.roundtime.update()
+        self.casttime.do_update()
+        self.roundtime.do_update()
 
 
 class DebugWindowHandler(logging.Handler):

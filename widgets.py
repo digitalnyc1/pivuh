@@ -32,7 +32,7 @@ from PyQt6.QtWidgets import (
     QToolButton,
     QWidget,
 )
-from enum import Enum
+from enum import Enum, IntFlag
 
 from config import Config
 from game import GameState
@@ -41,7 +41,7 @@ from variables import Variables
 
 
 class QCompass(QWidget):
-    class CompassFlag:
+    class CompassFlag(IntFlag):
         North = 1
         NorthEast = 2
         East = 4
@@ -410,50 +410,53 @@ class QCompass(QWidget):
                 return
 
     def update_compass(self, directions: CompassFlag) -> None:
-        self.north_active.setVisible(directions & QCompass.CompassFlag.North)
-        self.north_inactive.setVisible(~directions & QCompass.CompassFlag.North)
+        self.north_active.setVisible(bool(directions & QCompass.CompassFlag.North))
+        self.north_inactive.setVisible(not (directions & QCompass.CompassFlag.North))
 
-        self.northeast_active.setVisible(directions & QCompass.CompassFlag.NorthEast)
-        self.northeast_inactive.setVisible(~directions & QCompass.CompassFlag.NorthEast)
+        self.northeast_active.setVisible(bool(directions & QCompass.CompassFlag.NorthEast))
+        self.northeast_inactive.setVisible(not (directions & QCompass.CompassFlag.NorthEast))
 
-        self.east_active.setVisible(directions & QCompass.CompassFlag.East)
-        self.east_inactive.setVisible(~directions & QCompass.CompassFlag.East)
+        self.east_active.setVisible(bool(directions & QCompass.CompassFlag.East))
+        self.east_inactive.setVisible(not (directions & QCompass.CompassFlag.East))
 
-        self.southeast_active.setVisible(directions & QCompass.CompassFlag.SouthEast)
-        self.southeast_inactive.setVisible(~directions & QCompass.CompassFlag.SouthEast)
+        self.southeast_active.setVisible(bool(directions & QCompass.CompassFlag.SouthEast))
+        self.southeast_inactive.setVisible(not (directions & QCompass.CompassFlag.SouthEast))
 
-        self.south_active.setVisible(directions & QCompass.CompassFlag.South)
-        self.south_inactive.setVisible(~directions & QCompass.CompassFlag.South)
+        self.south_active.setVisible(bool(directions & QCompass.CompassFlag.South))
+        self.south_inactive.setVisible(not (directions & QCompass.CompassFlag.South))
 
-        self.southwest_active.setVisible(directions & QCompass.CompassFlag.SouthWest)
-        self.southwest_inactive.setVisible(~directions & QCompass.CompassFlag.SouthWest)
+        self.southwest_active.setVisible(bool(directions & QCompass.CompassFlag.SouthWest))
+        self.southwest_inactive.setVisible(not (directions & QCompass.CompassFlag.SouthWest))
 
-        self.west_active.setVisible(directions & QCompass.CompassFlag.West)
-        self.west_inactive.setVisible(~directions & QCompass.CompassFlag.West)
+        self.west_active.setVisible(bool(directions & QCompass.CompassFlag.West))
+        self.west_inactive.setVisible(not (directions & QCompass.CompassFlag.West))
 
-        self.northwest_active.setVisible(directions & QCompass.CompassFlag.NorthWest)
-        self.northwest_inactive.setVisible(~directions & QCompass.CompassFlag.NorthWest)
+        self.northwest_active.setVisible(bool(directions & QCompass.CompassFlag.NorthWest))
+        self.northwest_inactive.setVisible(not (directions & QCompass.CompassFlag.NorthWest))
 
-        self.out_active.setVisible(directions & QCompass.CompassFlag.Out)
-        self.out_inactive.setVisible(~directions & QCompass.CompassFlag.Out)
+        self.out_active.setVisible(bool(directions & QCompass.CompassFlag.Out))
+        self.out_inactive.setVisible(not (directions & QCompass.CompassFlag.Out))
 
-        self.up_active.setVisible(directions & QCompass.CompassFlag.Up)
-        self.up_inactive.setVisible(~directions & QCompass.CompassFlag.Up)
+        self.up_active.setVisible(bool(directions & QCompass.CompassFlag.Up))
+        self.up_inactive.setVisible(not (directions & QCompass.CompassFlag.Up))
 
-        self.down_active.setVisible(directions & QCompass.CompassFlag.Down)
-        self.down_inactive.setVisible(~directions & QCompass.CompassFlag.Down)
+        self.down_active.setVisible(bool(directions & QCompass.CompassFlag.Down))
+        self.down_inactive.setVisible(not (directions & QCompass.CompassFlag.Down))
 
 
 class QCompassButton(QLabel):
     clicked = pyqtSignal(int)
 
-    def __init__(self, direction: QCompass.CompassFlag = 0) -> None:
+    def __init__(self, direction: QCompass.CompassFlag = QCompass.CompassFlag(0)) -> None:
         super().__init__()
 
         self.direction = direction
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
+    def mousePressEvent(self, ev: QMouseEvent | None) -> None:
+        if not ev:
+            return
+
+        if ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.direction)
 
 
@@ -486,9 +489,11 @@ class QCustomTextEdit(QTextEdit):
         self._logger.debug("_timestamp: end")
         return True
 
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+    def contextMenuEvent(self, e: QContextMenuEvent | None) -> None:
         # Get the default context menu
         context_menu = self.createStandardContextMenu()
+        if not context_menu:
+            return
 
         clear_action = QAction("Clear", self)
         clear_action.triggered.connect(self._clear)
@@ -507,10 +512,11 @@ class QCustomTextEdit(QTextEdit):
         context_menu.addAction(clear_action)
         context_menu.addAction(timestamp_action)
 
-        # Execute the context menu
-        context_menu.exec(event.globalPos())
+        if e:
+            # Execute the context menu
+            context_menu.exec(e.globalPos())
 
-    def insertHtml(self, text: str, ignore_visiblity: bool = False) -> None:
+    def insertHtml(self, text: str | None, ignore_visiblity: bool = False) -> None:
         if not ignore_visiblity and not self.isVisible():
             return
 
@@ -518,15 +524,21 @@ class QCustomTextEdit(QTextEdit):
         super().insertHtml(text)
         self.moveCursor(QTextCursor.MoveOperation.End)
 
-    def mousePressEvent(self, e: QMouseEvent) -> None:
+    def mousePressEvent(self, e: QMouseEvent | None) -> None:
+        if not e:
+            return
+
         self.anchor: str = self.anchorAt(e.pos())
         if self.anchor:
-            QApplication.instance().setOverrideCursor(Qt.CursorShape.PointingHandCursor)
+            QApplication.instance().setOverrideCursor(Qt.CursorShape.PointingHandCursor)  # type: ignore[union-attr]
             return
 
         super().mousePressEvent(e)
 
-    def mouseReleaseEvent(self, e: QMouseEvent) -> None:
+    def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:
+        if not e:
+            return
+
         self.anchor: str = self.anchorAt(e.pos())
         if self.anchor:
             if self.anchor.startswith("http://") or self.anchor.startswith("https://"):
@@ -541,8 +553,8 @@ class QCustomTextEdit(QTextEdit):
                     self._window.main.moveCursor(QTextCursor.MoveOperation.End)
                     self._window.game_client.send(self.anchor)
 
-            QApplication.instance().setOverrideCursor(Qt.CursorShape.ArrowCursor)
-            self.anchor = None
+            QApplication.instance().setOverrideCursor(Qt.CursorShape.ArrowCursor)  # type: ignore[union-attr]
+            self.anchor = ""
             return
 
         super().mouseReleaseEvent(e)
@@ -571,7 +583,7 @@ class QCustomTimer(QObject):
         self.timer = QTimer()
         self.timer.timeout.connect(self.tick)
 
-    def connect(self, function: callable) -> None:
+    def connect(self, function: object) -> None:
         self._callbacks.append(function)
 
     def start(self) -> None:
@@ -613,7 +625,7 @@ class QIndicatorLabel(QLabel):
 
 
 class QIndicators(QWidget):
-    class IndicatorsFlag:
+    class IndicatorsFlag(IntFlag):
         Bleeding = 1
         Dead = 2
         Hidden = 4
@@ -838,7 +850,7 @@ class QMiniVital(QProgressBar):
         self.setValue(value)
         self.setFormat(text)
 
-    def update(self, value: int, text: str) -> None:
+    def do_update(self, value: int, text: str) -> None:
         self.setValue(value)
         self.setFormat(text)
 
@@ -907,7 +919,7 @@ class QTimerBar(QProgressBar):
         self._current_seconds = 1
         self.setValue(100)
 
-    def update(self) -> None:
+    def do_update(self) -> None:
         if not self._total_seconds:
             return
 
@@ -996,8 +1008,11 @@ class QHistoryLineEdit(QLineEdit):
         self._history_pos = len(self._history)
         self._current_input = ""
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        k = event.key()
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if not a0:
+            return
+
+        k = a0.key()
 
         if k == Qt.Key.Key_Up:
             if self._history:
@@ -1016,4 +1031,4 @@ class QHistoryLineEdit(QLineEdit):
                     self.setText(self._history[self._history_pos])
                 self.end(False)
         else:
-            super().keyPressEvent(event)
+            super().keyPressEvent(a0)
