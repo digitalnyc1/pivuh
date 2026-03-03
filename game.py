@@ -259,6 +259,7 @@ class EAccessClient(QThread):
 
         self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
         if not self._socket.waitForEncrypted(3000):
+            self.connected.emit(f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.")
             self._logger.error(
                 f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
             )
@@ -436,6 +437,7 @@ class GameClient(QThread):
 
         self._socket.connectToHost(self._game_host, self._game_port)
         if not self._socket.waitForConnected(3000):
+            self.connected.emit(f"Failed to connect to {self._game_host}:{self._game_port}.")
             self._logger.error(
                 f"Failed to connect to {self._game_host}:{self._game_port}.",
             )
@@ -495,13 +497,13 @@ class GameParser(QObject):
         self._buffer = ""
         self._window = self._variables.get("widgets", "main_window", None)
 
-    def Parse(self, message: str) -> None:
+    def parse(self, message: str) -> None:
         self._buffer += message
 
         update_room = False
 
         groups = re.search(
-            r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>""",
+            r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>\n?""",
             self._buffer,
             flags=re.DOTALL,
         )
@@ -510,10 +512,14 @@ class GameParser(QObject):
         if not groups:
             return
 
+        remaining = self._buffer[groups.end():]
+        self._buffer = self._buffer[:groups.end()]
+
         start_time = time.perf_counter()
 
-        # Current game time
         gametime = int(groups.group(1))
+        prompt = groups.group(2)
+        self._logger.debug(f"Prompt received: gametime({gametime}) prompt({prompt})")
 
         # Remove ANSI control characters and escape sequences, but leave newlines
         self._buffer = re.sub(
@@ -524,15 +530,14 @@ class GameParser(QObject):
 
         # Process the buffer
         # Note: Order of tag processing is important in certain cases
-
         self._logger.debug(f"Parse before: {repr(self._buffer)}")
 
         # <prompt></prompt>
         self._variables.set("temporary", "gametime", gametime)
-        self._variables.set("temporary", "prompt", html.unescape(groups.group(2)))
+        self._variables.set("temporary", "prompt", prompt)
         self._buffer = re.sub(
-            r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>""",
-            r"""\2""",
+            r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>\n?""",
+            "",
             self._buffer,
             flags=re.DOTALL,
         )
@@ -1212,12 +1217,12 @@ class GameParser(QObject):
                 )
 
         # Final buffer cleanup
-        self._buffer = self._buffer.replace("\n", "<br/>")
+        self._buffer = self._buffer.removeprefix("\n").replace("\n", "<br/>")
 
         self._logger.debug(f"Parse after: {repr(self._buffer)}")
 
         # If all we have is a prompt, don't display it
-        if not re.match(r"^\w*&gt;$", self._buffer):
+        if self._buffer:
             self.update_window.emit("main", self._buffer)
 
         end_time = time.perf_counter()
@@ -1226,6 +1231,9 @@ class GameParser(QObject):
         self._logger.debug(f"execution time: {exec_time}")
 
         self._buffer = ""
+
+        if remaining:
+            self.parse(remaining)
 
 
 class MindState:

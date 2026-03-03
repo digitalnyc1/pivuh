@@ -385,7 +385,7 @@ class MainWindow(QMainWindow):
             text = self.input.text()
             if text != "":
                 self.input.add_to_history(text)
-                self.command.Parse(text)
+                self.command.parse(text)
             self.input.clear()
 
         if not self.input.hasFocus():
@@ -446,7 +446,7 @@ class MainWindow(QMainWindow):
         widget = self._variables.get("widgets", "raw", None)
         if widget:
             widget.insertHtml(f"{html.escape(message)}<br/>")
-        self.game_parser.Parse(message)
+        self.game_parser.parse(message)
 
     def _on_clear_window(self, window: str) -> None:
         self._logger.debug(f"_on_clear_window: window({window})")
@@ -493,19 +493,9 @@ class MainWindow(QMainWindow):
         self.roundtime.start(seconds)
 
     def _on_update_window(self, window: str, message: str) -> None:
+        self._logger.debug(f"_on_update_window: window({window}) message({message})")
         if window not in self.windows:
             return
-
-        if self.windows[window].get("timestamp", False):
-            timestamp = datetime.now().strftime("[%H:%M]&nbsp;")
-            message = f"{timestamp}{message}"
-
-        if window == "main":
-            message = f"<br/>{message}"
-
-        message = message.replace("<br/><pre", "<pre")
-
-        self._logger.debug(f"_on_update_window: window({window}) message({message})")
 
         # Follow the if_closed chain until we find a visible widget
         target = window
@@ -514,6 +504,23 @@ class MainWindow(QMainWindow):
             visited.add(target)
             widget = self._variables.get("widgets", target, None)
             if widget and widget.isVisible():
+                # Apply timestamp based on the target window's setting
+                if target in self.windows and self.windows[target].get("timestamp", False):
+                    timestamp = datetime.now().strftime("[%H:%M]")
+                    message = f"{timestamp}&nbsp;{message}"
+
+                # Fix line breaks based on the target window
+                if target == "main" and not message.startswith("<br/>") and not message.startswith("<pre"):
+                    message = f"<br/>{message}"
+                elif target != "main" and not message.endswith("<br/>"):
+                    message = f"{message}<br/>"
+
+                # Add the current prompt to main window messages
+                if target == "main":
+                    prompt = self._variables.get("temporary", "prompt", "&gt;")
+                    if not message.endswith(prompt):
+                        message = f"{message}{prompt}"
+
                 widget.insertHtml(message, ignore_visiblity=True)
                 return
             if target not in self.windows:

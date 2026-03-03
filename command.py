@@ -16,7 +16,7 @@ class CommandParser:
 
         self._window = self._variables.get("widgets", "main_window", None)
 
-    def Parse(self, input: str) -> None:
+    def parse(self, input: str) -> None:
         input = re.sub(r"\s+", " ", input.strip())
 
         try:

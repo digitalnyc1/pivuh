@@ -85,8 +85,8 @@ DEFAULTS: dict = {
                 "title": "Combat",
             },
             "conversation": {
-                "default_open": False,
-                "if_closed": "main",
+                "default_open": True,
+                "if_closed": "none",
                 "timestamp": True,
                 "title": "Conversation",
             },
@@ -102,13 +102,13 @@ DEFAULTS: dict = {
                 "title": "Debug",
             },
             "experience": {
-                "default_open": False,
+                "default_open": True,
                 "if_closed": None,
                 "timestamp": False,
                 "title": "Experience",
             },
             "familiar": {
-                "default_open": False,
+                "default_open": True,
                 "if_closed": "main",
                 "timestamp": False,
                 "title": "Familiar",
@@ -143,7 +143,7 @@ DEFAULTS: dict = {
                 "title": "OOC",
             },
             "percWindow": {
-                "default_open": False,
+                "default_open": True,
                 "if_closed": None,
                 "title": "Spells",
             },
