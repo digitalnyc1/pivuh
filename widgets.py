@@ -954,6 +954,9 @@ class QTimerBar(QProgressBar):
     def start(self, seconds: int) -> None:
         self._logger.debug(f"start: seconds({seconds})")
         if not seconds:
+            self._current_seconds = 0
+            self._total_seconds = 0
+            self.setValue(0)
             return
 
         self._total_seconds = seconds
