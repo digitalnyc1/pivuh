@@ -18,6 +18,8 @@ DEFAULTS: dict = {
     "game": {
         "eaccess.host": "eaccess.play.net",
         "eaccess.port": 7910,
+        "portrait.timeout": 15,
+        "portrait.url": "https://www.play.net/bfe/DR-art/",
     },
     "presets": {
         "commands.color": "silver",

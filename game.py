@@ -6,6 +6,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Union
 
+import requests
 from PyQt6.QtCore import (
     QEventLoop,
     QObject,
@@ -513,6 +514,22 @@ class GameParser(QObject):
 
         self._buffer = ""
         self._window = self._variables.get("widgets", "main_window", None)
+
+    def _download_portrait(self, portrait_id: str) -> bool:
+        portrait_timeout = self._config.get("game", "portrait.timeout")
+        portrait_url = self._config.get("game", "portrait.url")
+        url = f"{portrait_url}/{portrait_id}.jpg"
+        dest = Path.cwd() / "cache" / f"{portrait_id}.jpg"
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            dest.write_bytes(response.content)
+            self._logger.debug(f"_download_portrait: saved portrait {portrait_id}")
+            return True
+        except Exception as e:
+            self._logger.warning(f"_download_portrait: failed to download portrait {portrait_id}: {e}")
+            return False
 
     def parse(self, message: str) -> None:
         self._buffer += message
@@ -1088,8 +1105,10 @@ class GameParser(QObject):
             self._logger.debug(f"resource: picture({picture_id})")
             if picture_id != "0":
                 file_name = Path.cwd() / "cache" / f"{picture_id}.jpg"
-                file_uri = file_name.as_uri()
+                if not file_name.exists():
+                    self._download_portrait(picture_id)
                 if file_name.exists():
+                    file_uri = file_name.as_uri()
                     self._buffer = re.sub(
                         rf"""<resource picture=['"]{picture_id}['"]/>\n?""",
                         f"""<img src="{file_uri}"/><br/>""",
