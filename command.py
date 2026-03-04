@@ -1,5 +1,8 @@
+import importlib
 import logging
 import re
+
+from PyQt6.QtWidgets import QDockWidget
 
 from config import Config
 from game import GameState
@@ -107,6 +110,12 @@ class CommandParser:
                 else:
                     self._window.main.insertHtml(usage)
 
+            elif command == "#reload":
+                import command as _command_module
+                importlib.reload(_command_module)
+                self._window.command = _command_module.CommandParser()
+                self._window.main.insertHtml("<br/>Command parser reloaded.")
+
             elif command == "#toolbar" or command == "#toolbars":
                 usage = f"<br/>Usage: {command} [lock|unlock]"
                 args_list = args.split(" ")
@@ -175,6 +184,9 @@ class CommandParser:
                     window.hide()
                 else:
                     self._window.main.insertHtml(usage)
+
+            elif command == "#test":
+                self._window.main.insertHtml("<br/>It works!")
 
             else:
                 self._window.main.insertHtml(f"<br/>Unknown command: {input}")
