@@ -64,8 +64,10 @@ class CommandParser:
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
                     self._config.load()
+                    self._window.main.insertHtml("<br/>Config loaded.")
                 elif subcommand.startswith("s"):
                     self._config.save()
+                    self._window.main.insertHtml("<br/>Config saved.")
                 else:
                     self._window.main.insertHtml(usage)
 
@@ -92,8 +94,10 @@ class CommandParser:
                         self._window.restoreGeometry(geometry)
                     if state:
                         self._window.restoreState(state)
+                    self._window.main.insertHtml("<br/>Layout loaded.")
                 elif subcommand.startswith("s"):
                     geometry = self._window.saveGeometry()
+                    self._window.main.insertHtml("<br/>Layout saved.")
                     self._logger.debug(f"MainWindow geometry: {geometry}")
 
                     state = self._window.saveState()
@@ -112,8 +116,10 @@ class CommandParser:
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
                     self._window._on_unlock_toolbars(False)
+                    self._window.main.insertHtml("<br/>Toolbars locked.")
                 elif subcommand.startswith("u"):
                     self._window._on_unlock_toolbars(True)
+                    self._window.main.insertHtml("<br/>Toolbars unlocked.")
                 else:
                     self._window.main.insertHtml(usage)
 
@@ -126,8 +132,47 @@ class CommandParser:
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
                     self._variables.load()
+                    self._window.main.insertHtml("<br/>Variables loaded.")
                 elif subcommand.startswith("s"):
                     self._variables.save()
+                    self._window.main.insertHtml("<br/>Variables saved.")
+                else:
+                    self._window.main.insertHtml(usage)
+
+            elif command == "#window":
+                usage = f"<br/>Usage: {command} [list|show|hide] (name)"
+                args_list = args.split(" ") if args else []
+                if len(args_list) < 1:
+                    self._window.main.insertHtml(usage)
+                    return
+
+                subcommand = args_list[0]
+                if not subcommand.startswith("l") and len(args_list) != 2:
+                    self._window.main.insertHtml(usage)
+                    return
+
+                windows_list = [w for w in self._variables.items("widgets") if w != "main_window" and w != "main"]
+                if subcommand.startswith("l"):
+                    self._window.main.insertHtml(f"<br/>Available windows: {", ".join(windows_list)}")
+                    return
+
+                window_name = args_list[1]
+                if window_name == "main_window" or window_name == "main":
+                    self._window.main.insertHtml(f"<br/>Window {window_name} cannot be shown/hidden.")
+                    return
+
+                window = self._variables.get("widgets", window_name, None)
+                if not window:
+                    self._window.main.insertHtml(f"<br/>Window {window_name} not found: {", ".join(windows_list)}")
+                    return
+
+                if not isinstance(window, QDockWidget):
+                    window = window.parentWidget() or window
+
+                if subcommand.startswith("s"):
+                    window.show()
+                elif subcommand.startswith("h"):
+                    window.hide()
                 else:
                     self._window.main.insertHtml(usage)
 

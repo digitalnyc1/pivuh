@@ -28,6 +28,9 @@ class Variables:
             VARIABLES[group] = {}
         VARIABLES[group][key] = value
 
+    def items(self, group: str) -> list:
+        return list(VARIABLES.get(group, {}))
+
     def load(self, file: str = "config/variables.json") -> None:
         """Load all non-transient groups from disk, merging into current state."""
         if not Path(file).exists():
