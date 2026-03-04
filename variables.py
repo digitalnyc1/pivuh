@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 VARIABLES: dict[str, dict] = {}
 
 # Variable groups listed here are kept only in memory and never written to disk.

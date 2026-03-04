@@ -1,8 +1,10 @@
-import html
 import logging
 import re
 import struct
 import time
+from enum import Enum
+from pathlib import Path
+from typing import Union
 
 from PyQt6.QtCore import (
     QEventLoop,
@@ -12,14 +14,11 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 from PyQt6.QtNetwork import (
+    QSslConfiguration,
     QSslError,
     QSslSocket,
-    QSslConfiguration,
     QTcpSocket,
 )
-from enum import Enum
-from pathlib import Path
-from typing import Union
 
 from config import Config
 from variables import Variables
@@ -165,8 +164,12 @@ class EAccessClient(QThread):
                         parts = data.split(b"\t")
                         self._login_key = parts[3]
                     except IndexError:
-                        self._logger.error("Failed to parse login key from server response.")
-                        self.message_received.emit("Failed to parse login key from server response.")
+                        self._logger.error(
+                            "Failed to parse login key from server response.",
+                        )
+                        self.message_received.emit(
+                            "Failed to parse login key from server response.",
+                        )
                         self.do_disconnect()
                         return
 
@@ -217,8 +220,12 @@ class EAccessClient(QThread):
                             game_host = parts[7]
                             game_port = parts[8]
                         except IndexError:
-                            self._logger.error("Failed to parse game host/port from server response.")
-                            self.message_received.emit("Failed to parse game host/port from server response.")
+                            self._logger.error(
+                                "Failed to parse game host/port from server response.",
+                            )
+                            self.message_received.emit(
+                                "Failed to parse game host/port from server response.",
+                            )
                             self.do_disconnect()
                             return
                         self._variables.set(
@@ -231,7 +238,9 @@ class EAccessClient(QThread):
                             "game_port",
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
-                        self._variables.set("protected", "login_key", self._login_key.decode("ascii"))
+                        self._variables.set(
+                            "protected", "login_key", self._login_key.decode("ascii"),
+                        )
                         self.do_disconnect()
 
                 elif data.startswith(b"X\t"):
@@ -259,7 +268,9 @@ class EAccessClient(QThread):
 
         self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
         if not self._socket.waitForEncrypted(3000):
-            self.connected.emit(f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.")
+            self.connected.emit(
+                f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
+            )
             self._logger.error(
                 f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
             )
@@ -275,8 +286,12 @@ class EAccessClient(QThread):
         self._logger.debug("authenticate: begin")
 
         self._account = self._variables.get("temporary", "account", "").encode("ascii")
-        self._password = self._variables.get("protected", "password", "").encode("ascii")
-        self._character = self._variables.get("temporary", "character", "").encode("ascii")
+        self._password = self._variables.get("protected", "password", "").encode(
+            "ascii",
+        )
+        self._character = self._variables.get("temporary", "character", "").encode(
+            "ascii",
+        )
         self._instance = self._variables.get("temporary", "instance", "")
 
         self.state = EAccessState.ListeningForKey
@@ -437,7 +452,9 @@ class GameClient(QThread):
 
         self._socket.connectToHost(self._game_host, self._game_port)
         if not self._socket.waitForConnected(3000):
-            self.connected.emit(f"Failed to connect to {self._game_host}:{self._game_port}.")
+            self.connected.emit(
+                f"Failed to connect to {self._game_host}:{self._game_port}.",
+            )
             self._logger.error(
                 f"Failed to connect to {self._game_host}:{self._game_port}.",
             )
@@ -512,8 +529,8 @@ class GameParser(QObject):
         if not groups:
             return
 
-        remaining = self._buffer[groups.end():]
-        self._buffer = self._buffer[:groups.end()]
+        remaining = self._buffer[groups.end() :]
+        self._buffer = self._buffer[: groups.end()]
 
         start_time = time.perf_counter()
 
@@ -631,16 +648,15 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            style_id = groups.group(1).lower()
             content = groups.group(2)
-            self._logger.debug(f"style: id({id}) content({content})")
+            self._logger.debug(f"style: style_id({style_id}) content({content})")
 
-            style_id = id.lower()
             color = self._config.get("presets", f"{style_id}.color", "")
             bgcolor = self._config.get("presets", f"{style_id}.bgcolor", "")
 
             self._buffer = re.sub(
-                rf"""<style id=['"]{re.escape(id)}['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
+                rf"""<style id=['"].*?['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1</span><br/>""",
                 self._buffer,
                 flags=re.DOTALL,
@@ -652,11 +668,10 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            preset_id = groups.group(1).lower()
             content = groups.group(2)
-            self._logger.debug(f"preset: id({id}) content({content})")
+            self._logger.debug(f"preset: preset_id({preset_id}) content({content})")
 
-            preset_id = id.lower()
             color = self._config.get("presets", f"{preset_id}.color", "")
             bgcolor = self._config.get("presets", f"{preset_id}.bgcolor", "")
 
@@ -665,7 +680,7 @@ class GameParser(QObject):
                 end = "<br/>"
 
             self._buffer = re.sub(
-                rf"""<preset id=['"]{re.escape(id)}['"]>\n?(.*?)\n?</preset>\s*\n?""",
+                rf"""<preset id=['"].*?['"]>\n?(.*?)\n?</preset>\s*\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1{end}</span>""",
                 self._buffer,
                 flags=re.DOTALL,
@@ -677,8 +692,8 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
-            self.clear_window.emit(id)
+            contaner_id = groups.group(1)
+            self.clear_window.emit(contaner_id)
 
         self._buffer = re.sub(
             r"""<clearContainer.*?/>\n?""",
@@ -693,9 +708,9 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
-            self.clear_window.emit(id)
-            self._logger.debug(f"clearStream: id({id})")
+            stream_id = groups.group(1)
+            self.clear_window.emit(stream_id)
+            self._logger.debug(f"clearStream: stream_id({stream_id})")
 
         self._buffer = re.sub(
             r"""<clearStream.*?/>\n?""",
@@ -710,14 +725,14 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            stream_id = groups.group(1)
             title = groups.group(2)
             subtitle = groups.group(3)
             roomid = groups.group(4) or "**"
             self._logger.debug(
-                f"streamWindow: id({id}) title({title}) subtitle({subtitle}) roomid({roomid})",
+                f"streamWindow: stream_id({stream_id}) title({title}) subtitle({subtitle}) roomid({roomid})",
             )
-            if id == "room":
+            if stream_id == "room":
                 if subtitle:
                     self._variables.set("temporary", "roomname", subtitle)
                     self._variables.set("temporary", "roomid", roomid)
@@ -736,14 +751,14 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            stream_id = groups.group(1)
             content = groups.group(2)
             content = content.replace("\n", "<br/>").replace("</pre><br/>", "</pre>")
             self._logger.debug(
-                f"pushStream/popStream: id({id}) content({repr(content)})",
+                f"pushStream/popStream: stream_id({stream_id}) content({repr(content)})",
             )
-            if id != "room" and content:
-                self.update_window.emit(id, content)
+            if stream_id != "room" and content:
+                self.update_window.emit(stream_id, content)
 
         self._buffer = re.sub(
             r"""<pushStream.*?/>.*?<popStream.*?/>\n?""",
@@ -758,32 +773,32 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            compdef_id = groups.group(1)
             guild = "Commoner"
-            if "Astrology" in id:
+            if "Astrology" in compdef_id:
                 guild = "Moon Mage"
-            elif "Backstab" in id:
+            elif "Backstab" in compdef_id:
                 guild = "Thief"
-            elif "Bardic Lore" in id:
+            elif "Bardic Lore" in compdef_id:
                 guild = "Bard"
-            elif "Conviction" in id:
+            elif "Conviction" in compdef_id:
                 guild = "Paladin"
-            elif "Empathy" in id:
+            elif "Empathy" in compdef_id:
                 guild = "Empath"
-            elif "Expertise" in id:
+            elif "Expertise" in compdef_id:
                 guild = "Barbarian"
-            elif "Instinct" in id:
+            elif "Instinct" in compdef_id:
                 guild = "Ranger"
-            elif "Summoning" in id:
+            elif "Summoning" in compdef_id:
                 guild = "Warrior Mage"
-            elif "Thanatology" in id:
+            elif "Thanatology" in compdef_id:
                 guild = "Necromancer"
-            elif "Theurgy" in id:
+            elif "Theurgy" in compdef_id:
                 guild = "Cleric"
-            elif "Trading" in id:
+            elif "Trading" in compdef_id:
                 guild = "Trader"
 
-            self._logger.debug(f"compDef: id({id}) guild({guild})")
+            self._logger.debug(f"compDef: compdef_id({compdef_id}) guild({guild})")
             if guild != "Commoner":
                 self._variables.set("temporary", "guild", guild)
                 self._logger.debug(f"guild({guild})")
@@ -801,21 +816,21 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            component_id = groups.group(1)
             content = groups.group(2)
             # TODO: HTML tags are needed for the room window, but complicate the roomobjs variable
             # content = re.sub(r"<[^>]*>", "", content)
-            self._logger.debug(f"component: id({id}) content({content})")
+            self._logger.debug(f"component: component_id({component_id}) content({content})")
 
-            if id.startswith("room "):
-                id = id.replace(" ", "")
+            if component_id.startswith("room "):
+                component_id = component_id.replace(" ", "")
 
-                self._variables.set("temporary", id, content)
+                self._variables.set("temporary", component_id, content)
 
                 update_room = True
 
-            elif id.startswith("exp "):
-                skill = id.replace("exp ", "").replace(" ", "_")
+            elif component_id.startswith("exp "):
+                skill = component_id.replace("exp ", "").replace(" ", "_")
 
                 if content:
                     self.update_window.emit("experience", f"{content}<br/>")
@@ -884,10 +899,10 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            inv_id = groups.group(1)
             content = groups.group(2)
-            self._logger.debug(f"inv: id({id}) content({content})")
-            self.update_window.emit(id, f"{content}<br/>")
+            self._logger.debug(f"inv: inv_id({inv_id}) content({content})")
+            self.update_window.emit(inv_id, f"{content}<br/>")
 
         self._buffer = re.sub(
             r"""<inv id=['"].*?['"]>.*?</inv>\n?""",
@@ -910,10 +925,10 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
+            dialog_id = groups.group(1)
             content = groups.group(2)
 
-            if id == "minivitals":
+            if dialog_id == "minivitals":
                 content = re.sub(r"""<skin.*?/>""", "", content, flags=re.DOTALL)
                 for content_groups in re.finditer(
                     r"""<progressBar id=['"](\w+)['"] value=['"](\d+)['"] text=['"](.*?)['"].*?/>""",
@@ -938,7 +953,7 @@ class GameParser(QObject):
                 content = re.sub(r"""<progressBar.*?/>""", "", content, flags=re.DOTALL)
             else:
                 self._logger.debug(
-                    f"dialogData: ignoring content with unsupported dialogData id: {id}",
+                    f"dialogData: ignoring content with unsupported dialogData id: {dialog_id}",
                 )
 
         # <dialogData></dialogData>
@@ -965,8 +980,8 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            id = groups.group(1)
-            indicators.append(id)
+            indicator_id = groups.group(1)
+            indicators.append(indicator_id)
         if has_indicator_update:
             self.update_indicators.emit(indicators)
 
@@ -1070,6 +1085,7 @@ class GameParser(QObject):
             flags=re.DOTALL,
         ):
             picture_id = groups.group(1)
+            self._logger.debug(f"resource: picture({picture_id})")
             if picture_id != "0":
                 file_name = Path.cwd() / "cache" / f"{picture_id}.jpg"
                 file_uri = file_name.as_uri()

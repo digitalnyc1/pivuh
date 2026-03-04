@@ -3,7 +3,6 @@ import json
 import logging
 from pathlib import Path
 
-
 LAYOUT_FILE = "config/layout.json"
 
 
@@ -28,7 +27,9 @@ class LayoutConfig:
                 data = json.load(f)
             geometry = base64.b64decode(data.get("geometry", ""))
             state = base64.b64decode(data.get("state", ""))
-            self._logger.debug(f"load: geometry={len(geometry)} bytes, state={len(state)} bytes")
+            self._logger.debug(
+                f"load: geometry={len(geometry)} bytes, state={len(state)} bytes",
+            )
             return geometry, state
         except Exception as e:
             self._logger.error(f"load: failed to load layout: {e}")
@@ -47,6 +48,8 @@ class LayoutConfig:
         try:
             with open(path, "w") as f:
                 json.dump(data, f, indent=2)
-            self._logger.debug(f"save: geometry={len(geometry)} bytes, state={len(state)} bytes")
+            self._logger.debug(
+                f"save: geometry={len(geometry)} bytes, state={len(state)} bytes",
+            )
         except Exception as e:
             self._logger.error(f"save: failed to save layout: {e}")

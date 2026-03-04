@@ -4,7 +4,6 @@ from pathlib import Path
 
 from PyQt6.QtGui import QIcon
 
-
 # Ensure the local images directory exists, copying from PyInstaller bundle if needed
 ICONS_DIR = Path("images")
 if not ICONS_DIR.exists():
@@ -14,12 +13,10 @@ if not ICONS_DIR.exists():
             shutil.copytree(bundled_images, ICONS_DIR)
         else:
             raise FileNotFoundError(
-                f"Images directory not found at '{ICONS_DIR}' or in the PyInstaller bundle ('{bundled_images}')."
+                f"Images directory not found at '{ICONS_DIR}' or in the PyInstaller bundle ('{bundled_images}').",
             )
     else:
-        raise FileNotFoundError(
-            f"Images directory not found at '{ICONS_DIR}'."
-        )
+        raise FileNotFoundError(f"Images directory not found at '{ICONS_DIR}'.")
 
 
 class Icons:

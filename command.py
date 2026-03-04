@@ -18,13 +18,13 @@ class CommandParser:
 
         self._window = self._variables.get("widgets", "main_window", None)
 
-    def parse(self, input: str) -> None:
-        input = re.sub(r"\s+", " ", input.strip())
+    def parse(self, command_input: str) -> None:
+        command_input = re.sub(r"\s+", " ", command_input.strip())
 
         try:
-            command, args = input.split(" ", 1)
+            command, args = command_input.split(" ", 1)
         except ValueError:
-            command = input
+            command = command_input
             args = ""
 
         if command.startswith("#"):
@@ -118,28 +118,54 @@ class CommandParser:
                 subcommand = args_list[0]
                 if subcommand.startswith("c"):
                     import command as _command_module
+
                     importlib.reload(_command_module)
                     self._window.command = _command_module.CommandParser()
                     self._window.main.insertHtml("<br/>Command parser reloaded.")
                 elif subcommand.startswith("g"):
                     import game as _game_module
+
                     old_parser = self._window.game_parser
                     old_parser.clear_window.disconnect(self._window._on_clear_window)
-                    old_parser.update_casttime.disconnect(self._window._on_update_casttime)
-                    old_parser.update_compass.disconnect(self._window._on_update_compass)
-                    old_parser.update_indicators.disconnect(self._window._on_update_indicators)
-                    old_parser.update_minivitals.disconnect(self._window._on_update_minivitals)
-                    old_parser.update_roundtime.disconnect(self._window._on_update_roundtime)
+                    old_parser.update_casttime.disconnect(
+                        self._window._on_update_casttime,
+                    )
+                    old_parser.update_compass.disconnect(
+                        self._window._on_update_compass,
+                    )
+                    old_parser.update_indicators.disconnect(
+                        self._window._on_update_indicators,
+                    )
+                    old_parser.update_minivitals.disconnect(
+                        self._window._on_update_minivitals,
+                    )
+                    old_parser.update_roundtime.disconnect(
+                        self._window._on_update_roundtime,
+                    )
                     old_parser.update_window.disconnect(self._window._on_update_window)
                     importlib.reload(_game_module)
                     self._window.game_parser = _game_module.GameParser()
-                    self._window.game_parser.clear_window.connect(self._window._on_clear_window)
-                    self._window.game_parser.update_casttime.connect(self._window._on_update_casttime)
-                    self._window.game_parser.update_compass.connect(self._window._on_update_compass)
-                    self._window.game_parser.update_indicators.connect(self._window._on_update_indicators)
-                    self._window.game_parser.update_minivitals.connect(self._window._on_update_minivitals)
-                    self._window.game_parser.update_roundtime.connect(self._window._on_update_roundtime)
-                    self._window.game_parser.update_window.connect(self._window._on_update_window)
+                    self._window.game_parser.clear_window.connect(
+                        self._window._on_clear_window,
+                    )
+                    self._window.game_parser.update_casttime.connect(
+                        self._window._on_update_casttime,
+                    )
+                    self._window.game_parser.update_compass.connect(
+                        self._window._on_update_compass,
+                    )
+                    self._window.game_parser.update_indicators.connect(
+                        self._window._on_update_indicators,
+                    )
+                    self._window.game_parser.update_minivitals.connect(
+                        self._window._on_update_minivitals,
+                    )
+                    self._window.game_parser.update_roundtime.connect(
+                        self._window._on_update_roundtime,
+                    )
+                    self._window.game_parser.update_window.connect(
+                        self._window._on_update_window,
+                    )
                     self._window.main.insertHtml("<br/>Game parser reloaded.")
                 else:
                     self._window.main.insertHtml(usage)
@@ -188,19 +214,29 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
                     return
 
-                windows_list = [w for w in self._variables.items("widgets") if w != "main_window" and w != "main"]
+                windows_list = [
+                    w
+                    for w in self._variables.items("widgets")
+                    if w != "main_window" and w != "main"
+                ]
                 if subcommand.startswith("l"):
-                    self._window.main.insertHtml(f"<br/>Available windows: {", ".join(windows_list)}")
+                    self._window.main.insertHtml(
+                        f"<br/>Available windows: {', '.join(windows_list)}",
+                    )
                     return
 
                 window_name = args_list[1]
                 if window_name == "main_window" or window_name == "main":
-                    self._window.main.insertHtml(f"<br/>Window {window_name} cannot be shown/hidden.")
+                    self._window.main.insertHtml(
+                        f"<br/>Window {window_name} cannot be shown/hidden.",
+                    )
                     return
 
                 window = self._variables.get("widgets", window_name, None)
                 if not window:
-                    self._window.main.insertHtml(f"<br/>Window {window_name} not found: {", ".join(windows_list)}")
+                    self._window.main.insertHtml(
+                        f"<br/>Window {window_name} not found: {', '.join(windows_list)}",
+                    )
                     return
 
                 if not isinstance(window, QDockWidget):
@@ -217,17 +253,17 @@ class CommandParser:
                 self._window.main.insertHtml("<br/>It works!")
 
             else:
-                self._window.main.insertHtml(f"<br/>Unknown command: {input}")
+                self._window.main.insertHtml(f"<br/>Unknown command: {command_input}")
 
         else:
-            self._variables.set("temporary", "lastcommand", input)
+            self._variables.set("temporary", "lastcommand", command_input)
             if self._window.game_client.state.name != "Connected":
-                self._window.main.insertHtml(f"<br/>({input})")
+                self._window.main.insertHtml(f"<br/>({command_input})")
             else:
                 color = self._config.get("presets", "commands.color", "")
                 bgcolor = self._config.get("presets", "commands.bgcolor", "")
 
                 self._window.main.insertHtml(
-                    f"""<span style="color: {color}; background-color: {bgcolor};">{input}</span>""",
+                    f"""<span style="color: {color}; background-color: {bgcolor};">{command_input}</span>""",
                 )
-                self._window.game_client.send(input)
+                self._window.game_client.send(command_input)
