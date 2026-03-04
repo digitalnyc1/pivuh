@@ -23,11 +23,6 @@ class Variables:
             VARIABLES[group] = {}
         return VARIABLES[group].get(key, fallback)
 
-    def set(self, group: str, key: str, value: Any) -> None:
-        if group not in VARIABLES:
-            VARIABLES[group] = {}
-        VARIABLES[group][key] = value
-
     def items(self, group: str) -> list:
         return list(VARIABLES.get(group, {}))
 
@@ -53,3 +48,8 @@ class Variables:
         }
         with open(file, "w") as json_file:
             json.dump(data, json_file, indent=2, sort_keys=True)
+
+    def set(self, group: str, key: str, value: Any) -> None:
+        if group not in VARIABLES:
+            VARIABLES[group] = {}
+        VARIABLES[group][key] = value

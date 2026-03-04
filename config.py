@@ -59,129 +59,127 @@ DEFAULTS: dict = {
         "whisper.bgcolor": "#111111",
     },
     "windows": {
-        "settings": {
-            "assess": {
-                "default_open": False,
-                "if_closed": "main",
-                "timestamp": False,
-                "title": "Assess",
-            },
-            "atmospherics": {
-                "default_open": False,
-                "if_closed": "main",
-                "timestamp": False,
-                "title": "Atmospherics",
-            },
-            "chatter": {
-                "default_open": False,
-                "if_closed": "main",
-                "timestamp": True,
-                "title": "Chatter",
-            },
-            "combat": {
-                "default_open": False,
-                "if_closed": "main",
-                "timestamp": False,
-                "title": "Combat",
-            },
-            "conversation": {
-                "default_open": True,
-                "if_closed": "none",
-                "timestamp": True,
-                "title": "Conversation",
-            },
-            "death": {
-                "default_open": True,
-                "if_closed": "main",
-                "timestamp": True,
-                "title": "Deaths",
-            },
-            "debug": {
-                "if_closed": None,
-                "timestamp": True,
-                "title": "Debug",
-            },
-            "experience": {
-                "default_open": True,
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Experience",
-            },
-            "familiar": {
-                "default_open": True,
-                "if_closed": "main",
-                "timestamp": False,
-                "title": "Familiar",
-            },
-            "group": {
-                "default_open": False,
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Group",
-            },
-            "inv": {
-                "default_open": False,
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Inventory",
-            },
-            "logons": {
-                "default_open": True,
-                "if_closed": "main",
-                "timestamp": True,
-                "title": "Arrivals",
-            },
-            "main": {
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Story",
-            },
-            "ooc": {
-                "default_open": False,
-                "if_closed": "conversation",
-                "timestamp": True,
-                "title": "OOC",
-            },
-            "percWindow": {
-                "default_open": True,
-                "if_closed": None,
-                "title": "Spells",
-            },
-            "raw": {
-                "default_open": False,
-                "if_closed": None,
-                "timestamp": True,
-                "title": "Raw",
-            },
-            "room": {
-                "default_open": True,
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Room",
-            },
-            "stow": {
-                "default_open": True,
-                "if_closed": None,
-                "timestamp": False,
-                "title": "Container",
-            },
-            "talk": {
-                "default_open": False,
-                "if_closed": "conversation",
-                "timestamp": True,
-                "title": "Talk",
-            },
-            "thoughts": {
-                "default_open": True,
-                "if_closed": "main",
-                "timestamp": True,
-                "title": "Thoughts",
-            },
-            "whispers": {
-                "default_open": False,
-                "if_closed": "conversation",
-                "title": "Whispers",
-            },
+        "assess": {
+            "default_open": False,
+            "if_closed": "main",
+            "timestamp": False,
+            "title": "Assess",
+        },
+        "atmospherics": {
+            "default_open": False,
+            "if_closed": "main",
+            "timestamp": False,
+            "title": "Atmospherics",
+        },
+        "chatter": {
+            "default_open": False,
+            "if_closed": "main",
+            "timestamp": True,
+            "title": "Chatter",
+        },
+        "combat": {
+            "default_open": False,
+            "if_closed": "main",
+            "timestamp": False,
+            "title": "Combat",
+        },
+        "conversation": {
+            "default_open": True,
+            "if_closed": "none",
+            "timestamp": True,
+            "title": "Conversation",
+        },
+        "death": {
+            "default_open": True,
+            "if_closed": "main",
+            "timestamp": True,
+            "title": "Deaths",
+        },
+        "debug": {
+            "if_closed": None,
+            "timestamp": True,
+            "title": "Debug",
+        },
+        "experience": {
+            "default_open": True,
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Experience",
+        },
+        "familiar": {
+            "default_open": True,
+            "if_closed": "main",
+            "timestamp": False,
+            "title": "Familiar",
+        },
+        "group": {
+            "default_open": False,
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Group",
+        },
+        "inv": {
+            "default_open": False,
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Inventory",
+        },
+        "logons": {
+            "default_open": True,
+            "if_closed": "main",
+            "timestamp": True,
+            "title": "Arrivals",
+        },
+        "main": {
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Story",
+        },
+        "ooc": {
+            "default_open": False,
+            "if_closed": "conversation",
+            "timestamp": True,
+            "title": "OOC",
+        },
+        "percWindow": {
+            "default_open": True,
+            "if_closed": None,
+            "title": "Spells",
+        },
+        "raw": {
+            "default_open": False,
+            "if_closed": None,
+            "timestamp": True,
+            "title": "Raw",
+        },
+        "room": {
+            "default_open": True,
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Room",
+        },
+        "stow": {
+            "default_open": True,
+            "if_closed": None,
+            "timestamp": False,
+            "title": "Container",
+        },
+        "talk": {
+            "default_open": False,
+            "if_closed": "conversation",
+            "timestamp": True,
+            "title": "Talk",
+        },
+        "thoughts": {
+            "default_open": True,
+            "if_closed": "main",
+            "timestamp": True,
+            "title": "Thoughts",
+        },
+        "whispers": {
+            "default_open": False,
+            "if_closed": "conversation",
+            "title": "Whispers",
         },
     },
 }
@@ -201,6 +199,14 @@ def _deep_merge(base: dict, overrides: dict) -> dict:
 class Config:
     def __init__(self, file: str = "config/config.json") -> None:
         self.load(file)
+
+    def get(self, section: str, key: str, fallback: Any = None) -> Any:
+        if section not in CONFIG:
+            CONFIG[section] = {}
+        return CONFIG[section].get(key, fallback)
+
+    def items(self, section: str) -> list:
+        return list(CONFIG.get(section, {}))
 
     def load(self, file: str = "config/config.json") -> None:
         """Load configuration from disk, merging with built-in defaults."""
@@ -222,18 +228,13 @@ class Config:
         CONFIG = merged
         self.CONFIG = CONFIG
 
-    def get(self, section: str, key: str, fallback: Any = None) -> Any:
-        if section not in CONFIG:
-            CONFIG[section] = {}
-        return CONFIG[section].get(key, fallback)
-
-    def set(self, section: str, key: str, value: Any) -> None:
-        if section not in CONFIG:
-            CONFIG[section] = {}
-        CONFIG[section][key] = value
-
     def save(self, file: str = "config/config.json") -> None:
         Path(file).parent.mkdir(parents=True, exist_ok=True)
         with open(file, "w") as json_file:
             json.dump(CONFIG, json_file, indent=2, sort_keys=True)
         _logger.debug(f"Config saved to {file}")
+
+    def set(self, section: str, key: str, value: Any) -> None:
+        if section not in CONFIG:
+            CONFIG[section] = {}
+        CONFIG[section][key] = value

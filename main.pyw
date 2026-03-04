@@ -272,7 +272,8 @@ class MainWindow(QMainWindow):
 
         # "Windows" aka Dock Widgets
         self.windows = {}
-        for id, settings in self._config.get("windows", "settings", {}).items():
+        for id in self._config.items("windows"):
+            settings = self._config.get("windows", id, {})
             if id not in self.windows:
                 self.windows[id] = settings
                 if id == "main":

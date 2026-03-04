@@ -499,8 +499,7 @@ class QCustomTextEdit(QTextEdit):
         clear_action.triggered.connect(self._clear)
 
         timestamp = (
-            self._config.get("windows", "settings", {})
-            .get(self._id, {})
+            self._config.get("windows", self._id, {})
             .get("timestamp", False)
         )
         timestamp_action = QAction("Timestamp", self)
