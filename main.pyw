@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QSplashScreen,
+    QWidget,
     QVBoxLayout,
 )
 from datetime import datetime
@@ -542,6 +543,24 @@ class MainWindow(QMainWindow):
                 break
             target = if_closed
 
+    def _scale_font(self, point_size: int) -> None:
+        family = self.font().family()
+        size = self.font().pointSize()
+
+        font = QFont()
+        font.setFamily(family)
+        font.setPointSize(size + point_size)
+        self.setFont(font)
+
+        for widget in self.findChildren(QWidget):
+            widget_family = widget.font().family()
+            widget_size = widget.font().pointSize()
+
+            widget_font = QFont()
+            widget_font.setFamily(widget_family)
+            widget_font.setPointSize(widget_size + point_size)
+            widget.setFont(widget_font)
+
     def closeEvent(self, a0: QEvent | None) -> None:
         if not a0:
             return
@@ -559,9 +578,13 @@ class MainWindow(QMainWindow):
             return
 
         k = a0.key()
+        m = a0.modifiers()
 
-        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            # Key Press: Enter
+        if k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal) and m & Qt.KeyboardModifier.ControlModifier:
+            self._scale_font(1)
+        elif k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore) and m & Qt.KeyboardModifier.ControlModifier:
+            self._scale_font(-1)
+        elif k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             text = self.input.text()
             if text != "":
                 self.input.add_to_history(text)
@@ -569,7 +592,6 @@ class MainWindow(QMainWindow):
             self.input.clear()
 
         if not self.input.hasFocus():
-            # Echo the key press event to the input box
             self.input.keyPressEvent(a0)
 
     def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:

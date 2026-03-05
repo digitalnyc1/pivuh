@@ -13,6 +13,7 @@ from PyQt6.QtGui import (
     QAction,
     QContextMenuEvent,
     QDesktopServices,
+    QFont,
     QKeyEvent,
     QMouseEvent,
     QTextCursor,
@@ -600,6 +601,20 @@ class QCustomTextEdit(QTextEdit):
             return
 
         super().mouseReleaseEvent(e)
+
+    def setFont(self, font: QFont) -> None:
+        super().setFont(font)
+        color = self._config.get("presets", "game.color")
+        bgcolor = self._config.get("presets", "game.bgcolor")
+        self.setStyleSheet(
+            f"""
+            QCustomTextEdit {{
+                font-family: "{font.family()}";
+                font-size: {font.pointSize()}pt; color: {color};
+                background-color: {bgcolor};
+            }}
+            """,
+        )
 
     def updateStyle(self) -> None:
         fontname = self._config.get("presets", "game.fontname")
