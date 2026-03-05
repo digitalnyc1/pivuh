@@ -1038,9 +1038,11 @@ class QHistoryLineEdit(QLineEdit):
         super().__init__()
 
         self._config = Config()
+        self._current_input: str = ""
         self._history: list[str] = []
         self._history_pos: int = 0
-        self._current_input: str = ""
+        self._variables = Variables()
+        self._window = self._variables.get("widgets", "main_window", None)
 
     def add_to_history(self, text: str) -> None:
         """Add a command to history and reset navigation position."""
@@ -1057,8 +1059,12 @@ class QHistoryLineEdit(QLineEdit):
             return
 
         k = a0.key()
+        m = a0.modifiers()
 
-        if k == Qt.Key.Key_Up:
+        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and m & Qt.KeyboardModifier.ControlModifier:
+            if self._history and self._window:
+                self._window.command.parse(self._history[-1])
+        elif k == Qt.Key.Key_Up:
             if self._history:
                 if self._history_pos == len(self._history):
                     self._current_input = self.text()
