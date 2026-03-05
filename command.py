@@ -1,3 +1,4 @@
+import html
 import importlib
 import logging
 import re
@@ -21,6 +22,8 @@ class CommandParser:
     def parse(self, command_input: str) -> None:
         command_input = re.sub(r"\s+", " ", command_input.strip())
 
+        tab = "&nbsp;&nbsp;&nbsp;&nbsp;"
+
         try:
             command, args = command_input.split(" ", 1)
         except ValueError:
@@ -29,15 +32,14 @@ class CommandParser:
 
         if command.startswith("#"):
             if command == "#connect":
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [account] [password] [character] [instance]</code>"
                 if self._window.game_client.state.name == "Connected":
                     self._logger.debug("#connect: already connected")
                     return
 
                 args_list = args.split(" ")
                 if len(args_list) != 4:
-                    self._window.main.insertHtml(
-                        "<br/>Usage: #connect [account] [password] [character] [instance]",
-                    )
+                    self._window.main.insertHtml(usage)
                     return
 
                 self._variables.set("protected", "login_key", "")
@@ -58,14 +60,14 @@ class CommandParser:
                 self._window.game_client.authenticate()
 
             elif command == "#config":
-                usage = f"<br/>Usage: {command} [load|save]"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [load|save]</code>"
                 args_list = args.split(" ") if args else []
                 if len(args_list) != 1 or not args_list[0]:
                     self._window.main.insertHtml(usage)
                     return
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
-                    self._config.load()
+                    self._config.load(force_reload=True)
                     self._window.main.insertHtml("<br/>Config loaded.")
                 elif subcommand.startswith("s"):
                     self._config.save()
@@ -82,8 +84,114 @@ class CommandParser:
                 self._window.game_client.do_disconnect()
                 self._window.close()
 
+            elif command == "#highlight" or command == "#highlights":
+                usage = (
+                    f"<br/>Usage:"
+                    f"<br/>{tab}<code>{command} list</code>"
+                    f"<br/>{tab}<code>{command} add {{[color](, bgcolor)}} {{[pattern]}}</code>"
+                    f"<br/>{tab}<code>{command} remove [index]</code>"
+                    f"<br/>{tab}<code>{command} clear\n</li></code>"
+                )
+                args_list = args.split(" ", 1) if args else []
+                if not args_list or not args_list[0]:
+                    self._window.main.insertHtml(usage)
+                    return
+                subcommand = args_list[0]
+                highlights = list(self._config.get("highlights", "rules", []))
+
+                if subcommand.startswith("l"):
+                    if not highlights:
+                        self._window.main.insertHtml("<br/>No highlights configured.")
+                    else:
+                        lines = ["<br/>Highlights:"]
+                        for i, h in enumerate(highlights, 1):
+                            pattern = html.escape(h.get("pattern", ""))
+                            color = h.get("color", "") or "(none)"
+                            bgcolor = h.get("bgcolor", "") or "(none)"
+                            lines.append(
+                                f"<br/>{tab}{i}. color={color} bgcolor={bgcolor} pattern=<code>{pattern}</code>",
+                            )
+                        self._window.main.insertHtml("".join(lines))
+
+                elif subcommand.startswith("a"):
+                    add_usage = (
+                        f"<br/>Usage:"
+                        f"<br/>{tab}<code>{command} add {{[color](, bgcolor)}} {{[pattern]}}</code>"
+                        f"<br/>Examples:"
+                        f"<br/>{tab}<code>{command} add {{yellow}} {{field goblin}}</code>"
+                        f"<br/>{tab}<code>{command} add {{yellow, #300000}} {{field gobln}}</code>"
+                    )
+                    add_args = args_list[1].strip() if len(args_list) > 1 else ""
+                    m = re.fullmatch(r"\{([^}]+)\}\s+\{([^}]+)\}", add_args)
+                    if not m:
+                        self._window.main.insertHtml(add_usage)
+                        return
+
+                    colors_raw = [c.strip() for c in m.group(1).split(",")]
+                    color = colors_raw[0]
+                    bgcolor = colors_raw[1] if len(colors_raw) > 1 else ""
+                    pattern = m.group(2)
+                    try:
+                        re.compile(pattern)
+                    except re.error as e:
+                        self._window.main.insertHtml(
+                            f"<br/>Invalid regex pattern: {html.escape(str(e))}",
+                        )
+                        return
+
+                    if any(h.get("pattern") == pattern for h in highlights):
+                        self._window.main.insertHtml(
+                            f"<br/>Highlight with pattern <code>{html.escape(pattern)}</code> already exists.",
+                        )
+                        return
+
+                    highlights.append({"pattern": pattern, "color": color, "bgcolor": bgcolor})
+                    self._config.set("highlights", "rules", highlights)
+                    self._window.main.insertHtml(
+                        f"<br/>Highlight #{len(highlights)} added:<br/>{tab}"
+                        f"color={color or '(none)'} bgcolor={bgcolor or '(none)'} "
+                        f"pattern=<code>{html.escape(pattern)}</code> ",
+                    )
+
+                elif subcommand.startswith("r"):
+                    remove_usage = (
+                        f"<br/>Usage:"
+                        f"<br/>{tab}<code>{command} remove [index]</code>"
+                    )
+                    remove_args = args_list[1].strip() if len(args_list) > 1 else ""
+                    if not remove_args:
+                        self._window.main.insertHtml(remove_usage)
+                        return
+                    try:
+                        i = int(remove_args) - 1
+                    except ValueError:
+                        self._window.main.insertHtml(
+                            f"<br/>Invalid index: {html.escape(remove_args)}",
+                        )
+                        return
+                    if i < 0 or i >= len(highlights):
+                        self._window.main.insertHtml(
+                            f"<br/>No highlight at index {i + 1}.",
+                        )
+                        return
+                    removed = highlights.pop(i)
+                    self._config.set("highlights", "rules", highlights)
+                    self._window.main.insertHtml(
+                        f"<br/>Highlight #{i + 1} removed:<br/>{tab}"
+                        f"color={html.escape(removed.get('color', '') or '(none)')} "
+                        f"bgcolor={html.escape(removed.get('bgcolor', '') or '(none)')} "
+                        f"pattern=<code>{html.escape(removed.get('pattern', ''))}</code>",
+                    )
+
+                elif subcommand.startswith("c"):
+                    self._config.set("highlights", "rules", [])
+                    self._window.main.insertHtml("<br/>Highlights cleared.")
+
+                else:
+                    self._window.main.insertHtml(usage)
+
             elif command == "#layout":
-                usage = f"<br/>Usage: {command} [load|save]"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [load|save]</code>"
                 args_list = args.split(" ")
                 if len(args_list) != 1:
                     self._window.main.insertHtml(usage)
@@ -110,7 +218,7 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
 
             elif command == "#reload":
-                usage = f"<br/>Usage: {command} [command|game]"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [command|game]</code>"
                 args_list = args.split(" ") if args else []
                 if len(args_list) != 1 or not args_list[0]:
                     self._window.main.insertHtml(usage)
@@ -126,7 +234,9 @@ class CommandParser:
                     import game as _game_module
 
                     old_parser = self._window.game_parser
-                    old_parser.clear_window.disconnect(self._window._on_clear_window)
+                    old_parser.clear_window.disconnect(
+                        self._window._on_clear_window,
+                    )
                     old_parser.update_casttime.disconnect(
                         self._window._on_update_casttime,
                     )
@@ -142,7 +252,10 @@ class CommandParser:
                     old_parser.update_roundtime.disconnect(
                         self._window._on_update_roundtime,
                     )
-                    old_parser.update_window.disconnect(self._window._on_update_window)
+                    old_parser.update_window.disconnect(
+                        self._window._on_update_window,
+                    )
+
                     importlib.reload(_game_module)
                     self._window.game_parser = _game_module.GameParser()
                     self._window.game_parser.clear_window.connect(
@@ -171,7 +284,7 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
 
             elif command == "#toolbar" or command == "#toolbars":
-                usage = f"<br/>Usage: {command} [lock|unlock]"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [lock|unlock]</code>"
                 args_list = args.split(" ")
                 if len(args_list) != 1:
                     self._window.main.insertHtml(usage)
@@ -187,7 +300,7 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
 
             elif command == "#variables":
-                usage = f"<br/>Usage: {command} [load|save]"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [load|save]</code>"
                 args_list = args.split(" ") if args else []
                 if len(args_list) != 1 or not args_list[0]:
                     self._window.main.insertHtml(usage)
@@ -203,7 +316,7 @@ class CommandParser:
                     self._window.main.insertHtml(usage)
 
             elif command == "#window":
-                usage = f"<br/>Usage: {command} [list|show|hide] (name)"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [list|show|hide] (name)</code>"
                 args_list = args.split(" ") if args else []
                 if len(args_list) < 1:
                     self._window.main.insertHtml(usage)
@@ -248,9 +361,6 @@ class CommandParser:
                     window.hide()
                 else:
                     self._window.main.insertHtml(usage)
-
-            elif command == "#test":
-                self._window.main.insertHtml("<br/>It works!")
 
             else:
                 self._window.main.insertHtml(f"<br/>Unknown command: {command_input}")

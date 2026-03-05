@@ -3,6 +3,7 @@
 import html
 import logging
 import os
+import re
 import sys
 
 from PyQt6.QtCore import (
@@ -360,50 +361,56 @@ class MainWindow(QMainWindow):
 
         self.input.setFocus()
 
-    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
-        if not a0:
+    def _apply_highlights(self, message: str) -> str:
+        """Apply regex-based highlight rules to a message's text content."""
+        highlights = self._config.get("highlights", "rules", [])
+
+        if not highlights:
+            return message
+
+        for h in highlights:
+            pattern = h.get("pattern", "")
+            color = h.get("color", "")
+            bgcolor = h.get("bgcolor", "")
+            if not pattern:
+                continue
+            style_parts: list[str] = []
+            if color:
+                style_parts.append(f"color: {color};")
+            if bgcolor:
+                style_parts.append(f"background-color: {bgcolor};")
+            if not style_parts:
+                continue
+            style = " ".join(style_parts)
+            try:
+                compiled = re.compile(pattern, re.IGNORECASE)
+            except re.error:
+                continue
+
+            # Split on HTML tags so we only replace inside text parts
+            parts = re.split(r"(<[^>]+>)", message)
+            result: list[str] = []
+            for part in parts:
+                if part.startswith("<"):
+                    result.append(part)
+                else:
+                    result.append(
+                        compiled.sub(
+                            lambda m, s=style: f'<span style="{s}">{m.group()}</span>',
+                            part,
+                        )
+                    )
+
+            message = "".join(result)
+        return message
+
+    def _on_clear_window(self, window: str) -> None:
+        self._logger.debug(f"_on_clear_window: window({window})")
+        if window not in self.windows:
             return
-
-        k = a0.key()
-
-        if k != Qt.Key.Key_Control:
-            # Don't setFocus() if only the Ctrl key is pressed
-            # Interferes with copying text from QTextEdit widgets
-            self.input.setFocus()
-
-        if not self.input.hasFocus():
-            # Echo the key press event to the input box
-            self.input.keyReleaseEvent(a0)
-
-    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
-        if not a0:
-            return
-
-        k = a0.key()
-
-        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            # Key Press: Enter
-            text = self.input.text()
-            if text != "":
-                self.input.add_to_history(text)
-                self.command.parse(text)
-            self.input.clear()
-
-        if not self.input.hasFocus():
-            # Echo the key press event to the input box
-            self.input.keyPressEvent(a0)
-
-    def closeEvent(self, a0: QEvent | None) -> None:
-        if not a0:
-            return
-
-        self.eaccess_client.do_disconnect()
-        self.game_client.do_disconnect()
-        self.eaccess_client.quit()
-        self.eaccess_client.wait()
-        self.game_client.quit()
-        self.game_client.wait()
-        a0.accept()
+        widget = self._variables.get("widgets", window, None)
+        if widget:
+            widget.setHtml("")
 
     def _on_eaccess_connected(self, message: str) -> None:
         if message:
@@ -449,13 +456,14 @@ class MainWindow(QMainWindow):
             widget.insertHtml(f"{html.escape(message)}<br/>")
         self.game_parser.parse(message)
 
-    def _on_clear_window(self, window: str) -> None:
-        self._logger.debug(f"_on_clear_window: window({window})")
-        if window not in self.windows:
-            return
-        widget = self._variables.get("widgets", window, None)
-        if widget:
-            widget.setHtml("")
+    def _on_unlock_toolbars(self, checked) -> None:
+        self._logger.debug(f"_on_unlock_toolbars")
+        self.compass_toolbar.setMovable(checked)
+        self.hands_toolbar.setMovable(checked)
+        self.indicators_toolbar.setMovable(checked)
+        self.input_toolbar.setMovable(checked)
+        self.minivitals_toolbar.setMovable(checked)
+        self.script_toolbar.setMovable(checked)
 
     def _on_update_casttime(self, timestamp: int) -> None:
         self._logger.debug(f"_on_update_casttime: timestamp({timestamp})")
@@ -522,6 +530,9 @@ class MainWindow(QMainWindow):
                     if not message.endswith(prompt):
                         message = f"{message}{prompt}"
 
+                # Apply highlights, gags, etc.
+                message = self._apply_highlights(message)
+
                 widget.insertHtml(message, ignore_visiblity=True)
                 return
             if target not in self.windows:
@@ -531,14 +542,50 @@ class MainWindow(QMainWindow):
                 break
             target = if_closed
 
-    def _on_unlock_toolbars(self, checked) -> None:
-        self._logger.debug(f"_on_unlock_toolbars")
-        self.compass_toolbar.setMovable(checked)
-        self.hands_toolbar.setMovable(checked)
-        self.indicators_toolbar.setMovable(checked)
-        self.input_toolbar.setMovable(checked)
-        self.minivitals_toolbar.setMovable(checked)
-        self.script_toolbar.setMovable(checked)
+    def closeEvent(self, a0: QEvent | None) -> None:
+        if not a0:
+            return
+
+        self.eaccess_client.do_disconnect()
+        self.game_client.do_disconnect()
+        self.eaccess_client.quit()
+        self.eaccess_client.wait()
+        self.game_client.quit()
+        self.game_client.wait()
+        a0.accept()
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+        if not a0:
+            return
+
+        k = a0.key()
+
+        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            # Key Press: Enter
+            text = self.input.text()
+            if text != "":
+                self.input.add_to_history(text)
+                self.command.parse(text)
+            self.input.clear()
+
+        if not self.input.hasFocus():
+            # Echo the key press event to the input box
+            self.input.keyPressEvent(a0)
+
+    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
+        if not a0:
+            return
+
+        k = a0.key()
+
+        if k != Qt.Key.Key_Control:
+            # Don't setFocus() if only the Ctrl key is pressed
+            # Interferes with copying text from QTextEdit widgets
+            self.input.setFocus()
+
+        if not self.input.hasFocus():
+            # Echo the key press event to the input box
+            self.input.keyReleaseEvent(a0)
 
     def reset_compass(self) -> None:
         self._on_update_compass([])
@@ -554,6 +601,10 @@ class MainWindow(QMainWindow):
         self.minivitals_toolbar.addWidget(self.minivitals["health"])
         self._logger.debug(f"reset_minivitals: end")
 
+    def timerbars_callback(self):
+        self.casttime.do_update()
+        self.roundtime.do_update()
+
     def update_style(self) -> None:
         fontname = self._config.get("presets", "ui.fontname")
         fontsize = self._config.get("presets", "ui.fontsize")
@@ -562,10 +613,6 @@ class MainWindow(QMainWindow):
         font.setFamily(fontname)
         font.setPointSize(int(fontsize.replace("pt", "")))
         self.setFont(font)
-
-    def timerbars_callback(self):
-        self.casttime.do_update()
-        self.roundtime.do_update()
 
 
 class DebugWindowHandler(logging.Handler):

@@ -199,7 +199,9 @@ def _deep_merge(base: dict, overrides: dict) -> dict:
 
 class Config:
     def __init__(self, file: str = "config/config.json") -> None:
-        self.load(file)
+        self._file = file
+
+        self.load()
 
     def get(self, section: str, key: str, fallback: Any = None) -> Any:
         if section not in CONFIG:
@@ -209,31 +211,34 @@ class Config:
     def items(self, section: str) -> list:
         return list(CONFIG.get(section, {}))
 
-    def load(self, file: str = "config/config.json") -> None:
+    def load(self, force_reload: bool = False) -> None:
         """Load configuration from disk, merging with built-in defaults."""
         global CONFIG
 
+        # Only load from disk if config is empty, unless a reload is forced.
+        if CONFIG and not force_reload:
+            return
+
         merged = _deep_merge({}, DEFAULTS)
 
-        if Path(file).exists():
+        if Path(self._file).exists():
             try:
-                with open(file, "r") as json_file:
+                with open(self._file, "r") as json_file:
                     user = json.load(json_file)
                 merged = _deep_merge(merged, user)
-                _logger.debug(f"Config loaded from {file}")
+                _logger.debug(f"Config loaded from {self._file}")
             except (json.JSONDecodeError, OSError) as exc:
-                _logger.warning(f"Could not read {file}: {exc}; using defaults")
+                _logger.warning(f"Could not read {self._file}: {exc}; using defaults")
         else:
-            _logger.debug(f"Config file {file} not found; using defaults")
+            _logger.debug(f"Config file {self._file} not found; using defaults")
 
         CONFIG = merged
-        self.CONFIG = CONFIG
 
-    def save(self, file: str = "config/config.json") -> None:
-        Path(file).parent.mkdir(parents=True, exist_ok=True)
-        with open(file, "w") as json_file:
+    def save(self) -> None:
+        Path(self._file).parent.mkdir(parents=True, exist_ok=True)
+        with open(self._file, "w") as json_file:
             json.dump(CONFIG, json_file, indent=2, sort_keys=True)
-        _logger.debug(f"Config saved to {file}")
+        _logger.debug(f"Config saved to {self._file}")
 
     def set(self, section: str, key: str, value: Any) -> None:
         if section not in CONFIG:
