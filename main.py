@@ -369,6 +369,97 @@ class MainWindow(QMainWindow):
 
         self.input.setFocus()
 
+    def closeEvent(self, a0: QEvent | None) -> None:  # noqa: N802
+        if not a0:
+            return
+
+        self.eaccess_client.do_disconnect()
+        self.game_client.do_disconnect()
+        self.eaccess_client.quit()
+        self.eaccess_client.wait()
+        self.game_client.quit()
+        self.game_client.wait()
+        a0.accept()
+
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
+        if not a0:
+            return
+
+        k = a0.key()
+        m = a0.modifiers()
+
+        if (
+            k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal)
+            and m & Qt.KeyboardModifier.ControlModifier
+        ):
+            self._scale_font(1)
+        elif (
+            k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore)
+            and m & Qt.KeyboardModifier.ControlModifier
+        ):
+            self._scale_font(-1)
+        elif k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            text = self.input.text()
+            if text != "":
+                self.input.add_to_history(text)
+                self.command.parse(text)
+            self.input.clear()
+
+        if not self.input.hasFocus():
+            self.input.keyPressEvent(a0)
+
+    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
+        if not a0:
+            return
+
+        k = a0.key()
+
+        if k != Qt.Key.Key_Control:
+            # Don't setFocus() if only the Ctrl key is pressed
+            # Interferes with copying text from QTextEdit widgets
+            self.input.setFocus()
+
+        if not self.input.hasFocus():
+            # Echo the key press event to the input box
+            self.input.keyReleaseEvent(a0)
+
+    @traced(show_args=False)
+    def reset_compass(self) -> None:
+        self._on_update_compass([])
+
+    @traced(show_args=False)
+    def reset_indicators(self) -> None:
+        self._on_update_indicators([])
+
+    @traced(show_args=False)
+    def reset_minivitals(self) -> None:
+        self.minivitals_toolbar.clear()
+        self.minivitals = {}
+        self.minivitals["health"] = QMiniVital("health", 0, "Health 0%")
+        self.minivitals_toolbar.addWidget(self.minivitals["health"])
+
+    def timerbars_callback(self) -> None:
+        self.casttime.do_update()
+        self.roundtime.do_update()
+
+    @traced(show_args=True)
+    def unlock_toolbars(self, checked: bool) -> None:
+        self.compass_toolbar.setMovable(checked)
+        self.hands_toolbar.setMovable(checked)
+        self.indicators_toolbar.setMovable(checked)
+        self.input_toolbar.setMovable(checked)
+        self.minivitals_toolbar.setMovable(checked)
+        self.script_toolbar.setMovable(checked)
+
+    @traced(show_args=False)
+    def update_style(self) -> None:
+        fontname = self._config.get("presets", "ui.fontname")
+        fontsize = self._config.get("presets", "ui.fontsize")
+        font = QFont()
+        font.setFamily(fontname)
+        font.setPointSize(int(fontsize.replace("pt", "")))
+        self.setFont(font)
+
     @traced(show_args=True)
     def _apply_highlights(self, message: str) -> str:
         """Apply regex-based highlight rules to a message's text content."""
@@ -579,97 +670,6 @@ class MainWindow(QMainWindow):
             widget_font.setFamily(widget_family)
             widget_font.setPointSize(widget_size + point_size)
             widget.setFont(widget_font)
-
-    def closeEvent(self, a0: QEvent | None) -> None:  # noqa: N802
-        if not a0:
-            return
-
-        self.eaccess_client.do_disconnect()
-        self.game_client.do_disconnect()
-        self.eaccess_client.quit()
-        self.eaccess_client.wait()
-        self.game_client.quit()
-        self.game_client.wait()
-        a0.accept()
-
-    def keyPressEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
-        if not a0:
-            return
-
-        k = a0.key()
-        m = a0.modifiers()
-
-        if (
-            k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal)
-            and m & Qt.KeyboardModifier.ControlModifier
-        ):
-            self._scale_font(1)
-        elif (
-            k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore)
-            and m & Qt.KeyboardModifier.ControlModifier
-        ):
-            self._scale_font(-1)
-        elif k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            text = self.input.text()
-            if text != "":
-                self.input.add_to_history(text)
-                self.command.parse(text)
-            self.input.clear()
-
-        if not self.input.hasFocus():
-            self.input.keyPressEvent(a0)
-
-    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
-        if not a0:
-            return
-
-        k = a0.key()
-
-        if k != Qt.Key.Key_Control:
-            # Don't setFocus() if only the Ctrl key is pressed
-            # Interferes with copying text from QTextEdit widgets
-            self.input.setFocus()
-
-        if not self.input.hasFocus():
-            # Echo the key press event to the input box
-            self.input.keyReleaseEvent(a0)
-
-    @traced(show_args=False)
-    def reset_compass(self) -> None:
-        self._on_update_compass([])
-
-    @traced(show_args=False)
-    def reset_indicators(self) -> None:
-        self._on_update_indicators([])
-
-    @traced(show_args=False)
-    def reset_minivitals(self) -> None:
-        self.minivitals_toolbar.clear()
-        self.minivitals = {}
-        self.minivitals["health"] = QMiniVital("health", 0, "Health 0%")
-        self.minivitals_toolbar.addWidget(self.minivitals["health"])
-
-    def timerbars_callback(self) -> None:
-        self.casttime.do_update()
-        self.roundtime.do_update()
-
-    @traced(show_args=True)
-    def unlock_toolbars(self, checked: bool) -> None:
-        self.compass_toolbar.setMovable(checked)
-        self.hands_toolbar.setMovable(checked)
-        self.indicators_toolbar.setMovable(checked)
-        self.input_toolbar.setMovable(checked)
-        self.minivitals_toolbar.setMovable(checked)
-        self.script_toolbar.setMovable(checked)
-
-    @traced(show_args=False)
-    def update_style(self) -> None:
-        fontname = self._config.get("presets", "ui.fontname")
-        fontsize = self._config.get("presets", "ui.fontsize")
-        font = QFont()
-        font.setFamily(fontname)
-        font.setPointSize(int(fontsize.replace("pt", "")))
-        self.setFont(font)
 
 
 class DebugWindowHandler(logging.Handler):
