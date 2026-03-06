@@ -74,6 +74,74 @@ class EAccessClient(QThread):
         self._socket.sslErrors.connect(self._handle_ssl_errors)
 
     @traced(show_args=False)
+    def authenticate(self) -> None:
+        if not self._socket.isOpen():
+            self._logger.error("Failed to authenticate: Not connected.")
+            return
+
+        self._account = self._variables.get("temporary", "account", "").encode("ascii")
+        self._password = self._variables.get("protected", "password", "").encode(
+            "ascii",
+        )
+        self._character = self._variables.get("temporary", "character", "").encode(
+            "ascii",
+        )
+        self._instance = self._variables.get("temporary", "instance", "")
+
+        self.state = EAccessState.ListeningForKey
+        self._socket.write(b"K\n")
+        self._socket.flush()
+
+    @traced(show_args=False)
+    def connect(self) -> None:
+        if self.state != EAccessState.Disconnected:
+            self._logger.debug("connect: already connected")
+            return
+
+        self._eaccess_host = self._config.get("game", "eaccess.host", "")
+        self._eaccess_port = self._config.get("game", "eaccess.port", 0)
+
+        if not self._eaccess_host or not self._eaccess_port:
+            self._logger.error("Missing Eaccess host and/or port.")
+            return
+
+        self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
+        if not self._socket.waitForEncrypted(3000):
+            error = f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}."
+            self.connected.emit(error)
+            self._logger.error(error)
+            return
+
+    @traced(show_args=False)
+    def do_disconnect(self) -> None:
+        if self.state == EAccessState.Disconnected:
+            self._logger.debug("do_disconnect: already disconnected")
+            return
+
+        if not self._socket.isOpen():
+            self._logger.debug("do_disconnect: socket already closed, resetting state")
+            self._variables.set("protected", "password", "")
+            self.state = EAccessState.Disconnected
+            return
+
+        self._socket.disconnectFromHost()
+        if self._socket.state() == QSslSocket.SocketState.ConnectedState:
+            self._socket.waitForDisconnected(3000)
+
+        self._variables.set("protected", "password", "")
+        self.state = EAccessState.Disconnected
+
+    @traced(show_args=False)
+    def wait_for_login_key(self, timeout: int) -> bool:
+        loop = QEventLoop()
+        self.disconnected.connect(loop.quit)
+        QTimer.singleShot(timeout, loop.quit)
+        loop.exec()
+        self.disconnected.disconnect(loop.quit)
+
+        return bool(self._variables.get("protected", "login_key", ""))
+
+    @traced(show_args=False)
     def _handle_error(self, socket_error: QSslSocket.SocketError) -> None:
         self._logger.error("Socket error: %s", socket_error)
 
@@ -242,74 +310,6 @@ class EAccessClient(QThread):
                     self.message_received.emit(error)
                     self.do_disconnect()
 
-    @traced(show_args=False)
-    def connect(self) -> None:
-        if self.state != EAccessState.Disconnected:
-            self._logger.debug("connect: already connected")
-            return
-
-        self._eaccess_host = self._config.get("game", "eaccess.host", "")
-        self._eaccess_port = self._config.get("game", "eaccess.port", 0)
-
-        if not self._eaccess_host or not self._eaccess_port:
-            self._logger.error("Missing Eaccess host and/or port.")
-            return
-
-        self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
-        if not self._socket.waitForEncrypted(3000):
-            error = f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}."
-            self.connected.emit(error)
-            self._logger.error(error)
-            return
-
-    @traced(show_args=False)
-    def authenticate(self) -> None:
-        if not self._socket.isOpen():
-            self._logger.error("Failed to authenticate: Not connected.")
-            return
-
-        self._account = self._variables.get("temporary", "account", "").encode("ascii")
-        self._password = self._variables.get("protected", "password", "").encode(
-            "ascii",
-        )
-        self._character = self._variables.get("temporary", "character", "").encode(
-            "ascii",
-        )
-        self._instance = self._variables.get("temporary", "instance", "")
-
-        self.state = EAccessState.ListeningForKey
-        self._socket.write(b"K\n")
-        self._socket.flush()
-
-    @traced(show_args=False)
-    def do_disconnect(self) -> None:
-        if self.state == EAccessState.Disconnected:
-            self._logger.debug("do_disconnect: already disconnected")
-            return
-
-        if not self._socket.isOpen():
-            self._logger.debug("do_disconnect: socket already closed, resetting state")
-            self._variables.set("protected", "password", "")
-            self.state = EAccessState.Disconnected
-            return
-
-        self._socket.disconnectFromHost()
-        if self._socket.state() == QSslSocket.SocketState.ConnectedState:
-            self._socket.waitForDisconnected(3000)
-
-        self._variables.set("protected", "password", "")
-        self.state = EAccessState.Disconnected
-
-    @traced(show_args=False)
-    def wait_for_login_key(self, timeout: int) -> bool:
-        loop = QEventLoop()
-        self.disconnected.connect(loop.quit)
-        QTimer.singleShot(timeout, loop.quit)
-        loop.exec()
-        self.disconnected.disconnect(loop.quit)
-
-        return bool(self._variables.get("protected", "login_key", ""))
-
 
 class GameState(Enum):
     Disconnected = 0
@@ -343,55 +343,6 @@ class GameClient(QThread):
         self._socket.disconnected.connect(self._on_disconnected)
         self._socket.errorOccurred.connect(self._handle_error)
         self._socket.readyRead.connect(self._read_data)
-
-    @traced(show_args=False)
-    def _handle_error(self, socket_error: QTcpSocket.SocketError) -> None:
-        self._logger.error("Socket error: %s", socket_error)
-
-    @traced(show_args=False)
-    def _on_connected(self) -> None:
-        self.connected.emit(f"Connected to {self._game_host}:{self._game_port}.")
-
-    @traced(show_args=False)
-    def _on_disconnected(self) -> None:
-        self.do_disconnect()
-        self.disconnected.emit(f"Connection to {self._game_host} closed.")
-
-    @traced(show_args=False)
-    def _read_data(self) -> None:
-        while self._socket.bytesAvailable():
-            data = self._socket.readAll().data()
-
-            if self.state == GameState.SendSettings:
-                if re.search(
-                    rb"^Invalid login key\.  Please relogin to the web site\.$",
-                    data,
-                ):
-                    self._logger.error(
-                        "Game server rejected the login key.  Please try again.",
-                    )
-                    self.message_received.emit(
-                        "Game server rejected the login key.  Please try again.",
-                    )
-                    self.do_disconnect()
-                    break
-
-                if re.search(rb"<settingsInfo.*?/>", data, flags=re.DOTALL):
-                    self._socket.write(b"<sendSettings/>\n")
-                    self._socket.flush()
-
-                elif re.search(rb"<sentSettings/>", data, flags=re.DOTALL):
-                    self._socket.write(b"\n\n")
-                    self._socket.flush()
-                    self.state = GameState.Connected
-            else:
-                try:
-                    self.message_received.emit(data.decode("ascii"))
-                except UnicodeDecodeError:
-                    self._logger.exception(
-                        "Error decoding message received from game server. Message contents: %r",
-                        data,
-                    )
 
     @traced(show_args=False)
     def authenticate(self) -> None:
@@ -457,6 +408,55 @@ class GameClient(QThread):
         self._socket.write(f"<c>{message}\n".encode("ascii"))
         self._socket.flush()
 
+    @traced(show_args=False)
+    def _handle_error(self, socket_error: QTcpSocket.SocketError) -> None:
+        self._logger.error("Socket error: %s", socket_error)
+
+    @traced(show_args=False)
+    def _on_connected(self) -> None:
+        self.connected.emit(f"Connected to {self._game_host}:{self._game_port}.")
+
+    @traced(show_args=False)
+    def _on_disconnected(self) -> None:
+        self.do_disconnect()
+        self.disconnected.emit(f"Connection to {self._game_host} closed.")
+
+    @traced(show_args=False)
+    def _read_data(self) -> None:
+        while self._socket.bytesAvailable():
+            data = self._socket.readAll().data()
+
+            if self.state == GameState.SendSettings:
+                if re.search(
+                    rb"^Invalid login key\.  Please relogin to the web site\.$",
+                    data,
+                ):
+                    self._logger.error(
+                        "Game server rejected the login key.  Please try again.",
+                    )
+                    self.message_received.emit(
+                        "Game server rejected the login key.  Please try again.",
+                    )
+                    self.do_disconnect()
+                    break
+
+                if re.search(rb"<settingsInfo.*?/>", data, flags=re.DOTALL):
+                    self._socket.write(b"<sendSettings/>\n")
+                    self._socket.flush()
+
+                elif re.search(rb"<sentSettings/>", data, flags=re.DOTALL):
+                    self._socket.write(b"\n\n")
+                    self._socket.flush()
+                    self.state = GameState.Connected
+            else:
+                try:
+                    self.message_received.emit(data.decode("ascii"))
+                except UnicodeDecodeError:
+                    self._logger.exception(
+                        "Error decoding message received from game server. Message contents: %r",
+                        data,
+                    )
+
 
 class GameParser(QObject):
     clear_window = pyqtSignal(str)
@@ -479,34 +479,13 @@ class GameParser(QObject):
     @traced(show_args=False)
     def __init__(self, window: "MainWindow") -> None:
         super().__init__()
+
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._buffer = ""
         self._config = Config()
         self._variables = Variables()
         self._window = window
-
-    @traced(show_args=False)
-    def _download_portrait(self, portrait_id: str) -> bool:
-        portrait_timeout = self._config.get("game", "portrait.timeout")
-        portrait_url = self._config.get("game", "portrait.url")
-        url = f"{portrait_url}/{portrait_id}.jpg"
-        dest = Path.cwd() / "cache" / f"{portrait_id}.jpg"
-        try:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            response = requests.get(url, timeout=portrait_timeout)
-            response.raise_for_status()
-            dest.write_bytes(response.content)
-            self._logger.debug("_download_portrait: saved portrait %s", portrait_id)
-        except Exception as e:
-            self._logger.warning(
-                "_download_portrait: failed to download portrait %s: %s",
-                portrait_id,
-                str(e),
-            )
-            return False
-        else:
-            return True
 
     @traced(show_args=False)
     def parse(self, message: str) -> None:
@@ -1253,6 +1232,28 @@ class GameParser(QObject):
         self._buffer = ""
         if remaining:
             self.parse(remaining)
+
+    @traced(show_args=False)
+    def _download_portrait(self, portrait_id: str) -> bool:
+        portrait_timeout = self._config.get("game", "portrait.timeout")
+        portrait_url = self._config.get("game", "portrait.url")
+        url = f"{portrait_url}/{portrait_id}.jpg"
+        dest = Path.cwd() / "cache" / f"{portrait_id}.jpg"
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            response = requests.get(url, timeout=portrait_timeout)
+            response.raise_for_status()
+            dest.write_bytes(response.content)
+            self._logger.debug("_download_portrait: saved portrait %s", portrait_id)
+        except Exception as e:
+            self._logger.warning(
+                "_download_portrait: failed to download portrait %s: %s",
+                portrait_id,
+                str(e),
+            )
+            return False
+        else:
+            return True
 
 
 class MindState:
