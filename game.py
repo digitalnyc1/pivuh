@@ -714,7 +714,7 @@ class GameParser(QObject):
 
         # <streamWindow/>
         for groups in re.finditer(
-            r"""<streamWindow id=['"](.*?)['"] title=['"](.*?)['"] subtitle=['"] - \[(.*?)\](?:\s\((\d+)\))?['"].*?/>""",
+            r"""<streamWindow id=['"](.*?)['"] title=['"](.*?)['"] subtitle=['"] - \[(.*?)\](?:\s\((\d+|\*\*)\))?['"].*?/>""",
             self._buffer,
             flags=re.DOTALL,
         ):
