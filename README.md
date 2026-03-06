@@ -1,5 +1,5 @@
 # Pivuh
-A cross-platform front-end written in Python for Simutronics Corporation’s game DragonRealms<br/>
+A cross-platform front end written in Python for Simutronics Corporation’s game DragonRealms<br/>
 Written by the player of Chanepheous (DR)
 
 Pivuh is currently a proof of concept project and is lacking many common front end features.
