@@ -66,18 +66,35 @@ class QCompass(QWidget):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
+        self._icon_size = self._config.get("presets", "compass.iconsize", 16)
         self._variables = Variables()
 
-        icon_size = self._config.get("presets", "compass.iconsize", 16)
+        self._setup_compass()
+        self._setup_layout()
 
+    @traced(show_args=False)
+    def _setup_compass(self) -> None:
+        self._setup_north()
+        self._setup_northeast()
+        self._setup_east()
+        self._setup_southeast()
+        self._setup_south()
+        self._setup_southwest()
+        self._setup_west()
+        self._setup_northwest()
+        self._setup_out()
+        self._setup_up()
+        self._setup_down()
+
+    def _setup_north(self) -> None:
         self.north_active = QCompassButton(QCompass.CompassFlag.North)
         self.north_active.setAccessibleDescription("North (Active)")
         self.north_active.setContentsMargins(0, 0, 0, 0)
         self.north_active.setPixmap(
             Icons().NorthActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -90,20 +107,21 @@ class QCompass(QWidget):
         self.north_inactive.setPixmap(
             Icons().NorthInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_northeast(self) -> None:
         self.northeast_active = QCompassButton(QCompass.CompassFlag.NorthEast)
         self.northeast_active.setAccessibleDescription("Northeast (Active)")
         self.northeast_active.setContentsMargins(0, 0, 0, 0)
         self.northeast_active.setPixmap(
             Icons().NorthEastActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -116,20 +134,21 @@ class QCompass(QWidget):
         self.northeast_inactive.setPixmap(
             Icons().NorthEastInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_east(self) -> None:
         self.east_active = QCompassButton(QCompass.CompassFlag.East)
         self.east_active.setAccessibleDescription("East (Active)")
         self.east_active.setContentsMargins(0, 0, 0, 0)
         self.east_active.setPixmap(
             Icons().EastActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -142,20 +161,21 @@ class QCompass(QWidget):
         self.east_inactive.setPixmap(
             Icons().EastInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_southeast(self) -> None:
         self.southeast_active = QCompassButton(QCompass.CompassFlag.SouthEast)
         self.southeast_active.setAccessibleDescription("Southeast (Active)")
         self.southeast_active.setContentsMargins(0, 0, 0, 0)
         self.southeast_active.setPixmap(
             Icons().SouthEastActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -168,20 +188,21 @@ class QCompass(QWidget):
         self.southeast_inactive.setPixmap(
             Icons().SouthEastInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_south(self) -> None:
         self.south_active = QCompassButton(QCompass.CompassFlag.South)
         self.south_active.setAccessibleDescription("South (Active)")
         self.south_active.setContentsMargins(0, 0, 0, 0)
         self.south_active.setPixmap(
             Icons().SouthActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -194,20 +215,21 @@ class QCompass(QWidget):
         self.south_inactive.setPixmap(
             Icons().SouthInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_southwest(self) -> None:
         self.southwest_active = QCompassButton(QCompass.CompassFlag.SouthWest)
         self.southwest_active.setAccessibleDescription("Southwest (Active)")
         self.southwest_active.setContentsMargins(0, 0, 0, 0)
         self.southwest_active.setPixmap(
             Icons().SouthWestActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -220,20 +242,21 @@ class QCompass(QWidget):
         self.southwest_inactive.setPixmap(
             Icons().SouthWestInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_west(self) -> None:
         self.west_active = QCompassButton(QCompass.CompassFlag.West)
         self.west_active.setAccessibleDescription("West (Active)")
         self.west_active.setContentsMargins(0, 0, 0, 0)
         self.west_active.setPixmap(
             Icons().WestActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -246,20 +269,21 @@ class QCompass(QWidget):
         self.west_inactive.setPixmap(
             Icons().WestInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_northwest(self) -> None:
         self.northwest_active = QCompassButton(QCompass.CompassFlag.NorthWest)
         self.northwest_active.setAccessibleDescription("Northwest (Active)")
         self.northwest_active.setContentsMargins(0, 0, 0, 0)
         self.northwest_active.setPixmap(
             Icons().NorthWestActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -272,20 +296,21 @@ class QCompass(QWidget):
         self.northwest_inactive.setPixmap(
             Icons().NorthWestInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_out(self) -> None:
         self.out_active = QCompassButton(QCompass.CompassFlag.Out)
         self.out_active.setAccessibleDescription("Out (Active)")
         self.out_active.setContentsMargins(0, 0, 0, 0)
         self.out_active.setPixmap(
             Icons().OutActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -298,20 +323,21 @@ class QCompass(QWidget):
         self.out_inactive.setPixmap(
             Icons().OutInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_up(self) -> None:
         self.up_active = QCompassButton(QCompass.CompassFlag.Up)
         self.up_active.setAccessibleDescription("Up (Active)")
         self.up_active.setContentsMargins(0, 0, 0, 0)
         self.up_active.setPixmap(
             Icons().UpActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -324,20 +350,21 @@ class QCompass(QWidget):
         self.up_inactive.setPixmap(
             Icons().UpInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_down(self) -> None:
         self.down_active = QCompassButton(QCompass.CompassFlag.Down)
         self.down_active.setAccessibleDescription("Down (Active)")
         self.down_active.setContentsMargins(0, 0, 0, 0)
         self.down_active.setPixmap(
             Icons().DownActiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
@@ -350,12 +377,13 @@ class QCompass(QWidget):
         self.down_inactive.setPixmap(
             Icons().DownInactiveIcon.pixmap(
                 QSize(
-                    icon_size,
-                    icon_size,
+                    self._icon_size,
+                    self._icon_size,
                 ),
             ),
         )
 
+    def _setup_layout(self) -> None:
         layout = QGridLayout()
         layout.setSpacing(0)
         layout.setRowStretch(0, 0)
