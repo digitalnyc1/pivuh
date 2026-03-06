@@ -2,14 +2,15 @@
 
 import html
 import logging
-import os
 import re
 import sys
+from datetime import UTC, datetime
+from logging import LogRecord
 
 from PyQt6.QtCore import (
-    Qt,
     QEvent,
     QSize,
+    Qt,
     QTimer,
 )
 from PyQt6.QtGui import (
@@ -26,25 +27,23 @@ from PyQt6.QtWidgets import (
     QLabel,
     QMainWindow,
     QSplashScreen,
-    QWidget,
     QVBoxLayout,
+    QWidget,
 )
-from datetime import datetime
-from logging import LogRecord
-from typing import Any
 
-from config import Config
 from command import CommandParser
+from config import Config
 from game import (
     EAccessClient,
     GameClient,
     GameParser,
 )
 from icons import (
-    Icons,
     ICONS_DIR,
+    Icons,
 )
 from layout import LayoutConfig
+from utils import traced
 from variables import Variables
 from widgets import (
     QCompass,
@@ -59,6 +58,7 @@ from widgets import (
 
 
 class MainWindow(QMainWindow):
+    @traced(show_args=False)
     def __init__(self) -> None:
         super().__init__()
 
@@ -66,8 +66,7 @@ class MainWindow(QMainWindow):
 
         self._config = Config()
         self._variables = Variables()
-
-        self._variables.set("widgets", "main_window", self)
+        self._window: MainWindow = self
 
         self.setContentsMargins(6, 6, 6, 6)
         self.update_style()
@@ -82,7 +81,7 @@ class MainWindow(QMainWindow):
         self.eaccess_client.message_received.connect(self._on_eaccess_message_received)
         self.eaccess_client.start()
 
-        self.game_parser = GameParser()
+        self.game_parser = GameParser(self._window)
         self.game_parser.clear_window.connect(self._on_clear_window)
         self.game_parser.update_casttime.connect(self._on_update_casttime)
         self.game_parser.update_compass.connect(self._on_update_compass)
@@ -97,7 +96,7 @@ class MainWindow(QMainWindow):
         self.game_client.message_received.connect(self._on_game_message_received)
         self.game_client.start()
 
-        self.command = CommandParser()
+        self.command = CommandParser(self._window)
 
         client_name = self._config.get("client", "client.name", "Pivuh")
         client_version = self._config.get("client", "client.version", "(dev)")
@@ -197,7 +196,9 @@ class MainWindow(QMainWindow):
         self.indicators_toolbar.setObjectName("IndicatorsToolBar")
         self.indicators_toolbar.setWindowTitle("Indicators")
         self.indicators_toolbar.addWidget(indicators_toolbar_widget)
-        self.indicators_toolbar.setStyleSheet("padding: 0px; margin: 0px; border: none;")
+        self.indicators_toolbar.setStyleSheet(
+            "padding: 0px; margin: 0px; border: none;",
+        )
 
         self.addToolBar(Qt.ToolBarArea.BottomToolBarArea, self.indicators_toolbar)
 
@@ -263,7 +264,7 @@ class MainWindow(QMainWindow):
 
         # Status Bar
         self.status_label = []
-        while len(self.status_label) < 5:
+        while len(self.status_label) < 5:  # noqa: PLR2004
             self.status_label.append(QLabel())
         self.status_label[0].setText("Disconnected")
 
@@ -274,24 +275,31 @@ class MainWindow(QMainWindow):
 
         # "Windows" aka Dock Widgets
         self.windows = {}
-        for id in self._config.items("windows"):
-            settings = self._config.get("windows", id, {})
-            if id not in self.windows:
-                self.windows[id] = settings
-                if id == "main":
-                    self._variables.set("widgets", id, self.main)
-                elif id == "debug":
-                    self._variables.set("widgets", id, self.debug)
+        for window_id in self._config.items("windows"):
+            settings = self._config.get("windows", window_id, {})
+            if window_id not in self.windows:
+                self.windows[window_id] = settings
+                if window_id == "main":
+                    self._variables.set("widgets", window_id, self.main)
+                elif window_id == "debug":
+                    self._variables.set("widgets", window_id, self.debug)
                 else:
-                    self._variables.set("widgets", id, QCustomTextEdit(id))
+                    self._variables.set(
+                        "widgets",
+                        window_id,
+                        QCustomTextEdit(window_id),
+                    )
 
                     title = settings.get("title", "Unknown")
                     dock_widget = QDockWidget(title, self)
                     dock_widget.setAccessibleDescription(f"{title} Window")
-                    dock_widget.setContentsMargins(3,3,3,3)
-                    dock_widget.setObjectName(id)
-                    dock_widget.setWidget(self._variables.get("widgets", id))
-                    self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock_widget)
+                    dock_widget.setContentsMargins(3, 3, 3, 3)
+                    dock_widget.setObjectName(window_id)
+                    dock_widget.setWidget(self._variables.get("widgets", window_id))
+                    self.addDockWidget(
+                        Qt.DockWidgetArea.RightDockWidgetArea,
+                        dock_widget,
+                    )
 
                     if not settings.get("default_open", True):
                         dock_widget.hide()
@@ -300,23 +308,22 @@ class MainWindow(QMainWindow):
 
         # Menu Bar
         menu = self.menuBar()
-        assert menu is not None
+        if menu is not None:
+            file_exit_action = QAction("&Exit", self)
+            file_exit_action.setCheckable(False)
+            file_exit_action.triggered.connect(self.close)
 
-        file_exit_action = QAction("&Exit", self)
-        file_exit_action.setCheckable(False)
-        file_exit_action.triggered.connect(self.close)
+            self.file_menu = menu.addMenu("&File")
+            if self.file_menu is not None:
+                self.file_menu.addAction(file_exit_action)
 
-        self.file_menu = menu.addMenu("&File")
-        assert self.file_menu is not None
-        self.file_menu.addAction(file_exit_action)
+            edit_unlock_toolbars_action = QAction("&Unlock Toolbars", self)
+            edit_unlock_toolbars_action.setCheckable(True)
+            edit_unlock_toolbars_action.triggered.connect(self.unlock_toolbars)
 
-        edit_unlock_toolbars_action = QAction("&Unlock Toolbars", self)
-        edit_unlock_toolbars_action.setCheckable(True)
-        edit_unlock_toolbars_action.triggered.connect(self._on_unlock_toolbars)
-
-        self.edit_menu = menu.addMenu("&Edit")
-        assert self.edit_menu is not None
-        self.edit_menu.addAction(edit_unlock_toolbars_action)
+            self.edit_menu = menu.addMenu("&Edit")
+            if self.edit_menu is not None:
+                self.edit_menu.addAction(edit_unlock_toolbars_action)
 
         # Finish main window components
         self.setCentralWidget(main_frame)
@@ -330,7 +337,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle(f"[Disconnected] - {client_name} v{client_version}")
 
-        self.main.insertHtml(f"{client_name} v{client_version}", ignore_visiblity=True)
+        self.main.insertHtml(f"{client_name} v{client_version}", ignore_visibility=True)
 
         # Pre-build lookup dicts so signal handlers don't rebuild them on every call
         self._direction_mapping = {
@@ -362,6 +369,7 @@ class MainWindow(QMainWindow):
 
         self.input.setFocus()
 
+    @traced(show_args=True)
     def _apply_highlights(self, message: str) -> str:
         """Apply regex-based highlight rules to a message's text content."""
         highlights = self._config.get("highlights", "rules", [])
@@ -399,32 +407,36 @@ class MainWindow(QMainWindow):
                         compiled.sub(
                             lambda m, s=style: f'<span style="{s}">{m.group()}</span>',
                             part,
-                        )
+                        ),
                     )
 
             message = "".join(result)
         return message
 
+    @traced(show_args=True)
     def _on_clear_window(self, window: str) -> None:
-        self._logger.debug(f"_on_clear_window: window({window})")
         if window not in self.windows:
             return
         widget = self._variables.get("widgets", window, None)
         if widget:
             widget.setHtml("")
 
+    @traced(show_args=False)
     def _on_eaccess_connected(self, message: str) -> None:
         if message:
             self.main.insertHtml(f"<br/>{message}")
 
+    @traced(show_args=False)
     def _on_eaccess_disconnected(self, message: str) -> None:
         if message:
             self.main.insertHtml(f"<br/>{message}")
 
+    @traced(show_args=False)
     def _on_eaccess_message_received(self, message: str) -> None:
         if message:
             self.main.insertHtml(f"<br/>{message}")
 
+    @traced(show_args=False)
     def _on_game_connected(self, message: str) -> None:
         if message:
             self.main.insertHtml(f"<br/>{message}")
@@ -433,10 +445,13 @@ class MainWindow(QMainWindow):
         instance = self._variables.get("temporary", "instance", "")
         client_name = self._config.get("client", "client.name", "Pivuh")
         client_version = self._config.get("client", "client.version", "(dev)")
-        self.setWindowTitle(f"{instance}: {character} [Connected] - {client_name} v{client_version}")
+        self.setWindowTitle(
+            f"{instance}: {character} [Connected] - {client_name} v{client_version}",
+        )
 
         self.status_label[0].setText("Connected")
 
+    @traced(show_args=False)
     def _on_game_disconnected(self, message: str) -> None:
         if message:
             self.main.insertHtml(f"<br/>{message}")
@@ -451,59 +466,55 @@ class MainWindow(QMainWindow):
         self.reset_indicators()
         self.reset_minivitals()
 
+    @traced(show_args=False)
     def _on_game_message_received(self, message: str) -> None:
         widget = self._variables.get("widgets", "raw", None)
         if widget:
             widget.insertHtml(f"{html.escape(message)}<br/>")
         self.game_parser.parse(message)
 
-    def _on_unlock_toolbars(self, checked) -> None:
-        self._logger.debug(f"_on_unlock_toolbars")
-        self.compass_toolbar.setMovable(checked)
-        self.hands_toolbar.setMovable(checked)
-        self.indicators_toolbar.setMovable(checked)
-        self.input_toolbar.setMovable(checked)
-        self.minivitals_toolbar.setMovable(checked)
-        self.script_toolbar.setMovable(checked)
-
+    @traced(show_args=True)
     def _on_update_casttime(self, timestamp: int) -> None:
-        self._logger.debug(f"_on_update_casttime: timestamp({timestamp})")
         self.casttime.start(timestamp)
 
+    @traced(show_args=True)
     def _on_update_compass(self, directions: list) -> None:
-        self._logger.debug(f"_on_update_compass: directions({directions})")
         direction_flags = self.compass.CompassFlag(0)
         for direction in directions:
             if direction in self._direction_mapping:
                 direction_flags |= self._direction_mapping[direction]
             else:
-                self._logger.error(f"_on_update_compass: Invalid compass direction: {direction}")
+                self._logger.error(
+                    "_on_update_compass: Invalid compass direction: %s", direction
+                )
         self.compass.update_compass(direction_flags)
 
+    @traced(show_args=True)
     def _on_update_indicators(self, indicators: list) -> None:
-        self._logger.debug(f"_on_update_indicators: indicators({indicators})")
         indicators_flags = self.indicators.IndicatorsFlag(0)
         for indicator in indicators:
             if indicator in self._indicators_mapping:
                 indicators_flags |= self._indicators_mapping[indicator]
             else:
-                self._logger.error(f"_on_update_indicators: Invalid indicator: {indicator}")
+                self._logger.error(
+                    "_on_update_indicators: Invalid indicator: %s", indicator
+                )
         self.indicators.update_indicators(indicators_flags)
 
-    def _on_update_minivitals(self, id: str, value: int, text: str) -> None:
-        self._logger.debug(f"_on_update_minivitals: id({id}) value({value}) text({text})")
-        if id not in self.minivitals:
-            self.minivitals[id] = QMiniVital(id, value, text)
-            self.minivitals_toolbar.addWidget(self.minivitals[id])
+    @traced(show_args=True)
+    def _on_update_minivitals(self, minivital_id: str, value: int, text: str) -> None:
+        if minivital_id not in self.minivitals:
+            self.minivitals[minivital_id] = QMiniVital(minivital_id, value, text)
+            self.minivitals_toolbar.addWidget(self.minivitals[minivital_id])
         else:
-            self.minivitals[id].do_update(value, text)
+            self.minivitals[minivital_id].do_update(value, text)
 
+    @traced(show_args=True)
     def _on_update_roundtime(self, seconds: int) -> None:
-        self._logger.debug(f"_on_update_roundtime: seconds({seconds})")
         self.roundtime.start(seconds)
 
+    @traced(show_args=True)
     def _on_update_window(self, window: str, message: str) -> None:
-        self._logger.debug(f"_on_update_window: window({window}) message({message})")
         if window not in self.windows:
             return
 
@@ -515,12 +526,19 @@ class MainWindow(QMainWindow):
             widget = self._variables.get("widgets", target, None)
             if widget and widget.isVisible():
                 # Apply timestamp based on the target window's setting
-                if target in self.windows and self.windows[target].get("timestamp", False):
-                    timestamp = datetime.now().strftime("[%H:%M]")
+                if target in self.windows and self.windows[target].get(
+                    "timestamp",
+                    False,
+                ):
+                    timestamp = datetime.now(tz=UTC).strftime("[%H:%M]")
                     message = f"{timestamp}&nbsp;{message}"
 
                 # Fix line breaks based on the target window
-                if target == "main" and not message.startswith("<br/>") and not message.startswith("<pre"):
+                if (
+                    target == "main"
+                    and not message.startswith("<br/>")
+                    and not message.startswith("<pre")
+                ):
                     message = f"<br/>{message}"
                 elif target != "main" and not message.endswith("<br/>"):
                     message = f"{message}<br/>"
@@ -534,7 +552,7 @@ class MainWindow(QMainWindow):
                 # Apply highlights, gags, etc.
                 message = self._apply_highlights(message)
 
-                widget.insertHtml(message, ignore_visiblity=True)
+                widget.insertHtml(message, ignore_visibility=True)
                 return
             if target not in self.windows:
                 break
@@ -543,6 +561,7 @@ class MainWindow(QMainWindow):
                 break
             target = if_closed
 
+    @traced(show_args=True)
     def _scale_font(self, point_size: int) -> None:
         family = self.font().family()
         size = self.font().pointSize()
@@ -561,7 +580,7 @@ class MainWindow(QMainWindow):
             widget_font.setPointSize(widget_size + point_size)
             widget.setFont(widget_font)
 
-    def closeEvent(self, a0: QEvent | None) -> None:
+    def closeEvent(self, a0: QEvent | None) -> None:  # noqa: N802
         if not a0:
             return
 
@@ -573,16 +592,22 @@ class MainWindow(QMainWindow):
         self.game_client.wait()
         a0.accept()
 
-    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
         if not a0:
             return
 
         k = a0.key()
         m = a0.modifiers()
 
-        if k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal) and m & Qt.KeyboardModifier.ControlModifier:
+        if (
+            k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal)
+            and m & Qt.KeyboardModifier.ControlModifier
+        ):
             self._scale_font(1)
-        elif k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore) and m & Qt.KeyboardModifier.ControlModifier:
+        elif (
+            k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore)
+            and m & Qt.KeyboardModifier.ControlModifier
+        ):
             self._scale_font(-1)
         elif k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             text = self.input.text()
@@ -594,7 +619,7 @@ class MainWindow(QMainWindow):
         if not self.input.hasFocus():
             self.input.keyPressEvent(a0)
 
-    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:
+    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
         if not a0:
             return
 
@@ -609,28 +634,38 @@ class MainWindow(QMainWindow):
             # Echo the key press event to the input box
             self.input.keyReleaseEvent(a0)
 
+    @traced(show_args=False)
     def reset_compass(self) -> None:
         self._on_update_compass([])
 
+    @traced(show_args=False)
     def reset_indicators(self) -> None:
         self._on_update_indicators([])
 
+    @traced(show_args=False)
     def reset_minivitals(self) -> None:
-        self._logger.debug(f"reset_minivitals: begin")
         self.minivitals_toolbar.clear()
         self.minivitals = {}
         self.minivitals["health"] = QMiniVital("health", 0, "Health 0%")
         self.minivitals_toolbar.addWidget(self.minivitals["health"])
-        self._logger.debug(f"reset_minivitals: end")
 
-    def timerbars_callback(self):
+    def timerbars_callback(self) -> None:
         self.casttime.do_update()
         self.roundtime.do_update()
 
+    @traced(show_args=True)
+    def unlock_toolbars(self, checked: bool) -> None:
+        self.compass_toolbar.setMovable(checked)
+        self.hands_toolbar.setMovable(checked)
+        self.indicators_toolbar.setMovable(checked)
+        self.input_toolbar.setMovable(checked)
+        self.minivitals_toolbar.setMovable(checked)
+        self.script_toolbar.setMovable(checked)
+
+    @traced(show_args=False)
     def update_style(self) -> None:
         fontname = self._config.get("presets", "ui.fontname")
         fontsize = self._config.get("presets", "ui.fontsize")
-        self._logger.debug(f"update_style: fontname({fontname}) fontsize({fontsize})")
         font = QFont()
         font.setFamily(fontname)
         font.setPointSize(int(fontsize.replace("pt", "")))
@@ -638,7 +673,7 @@ class MainWindow(QMainWindow):
 
 
 class DebugWindowHandler(logging.Handler):
-    def __init__(self, window: Any):
+    def __init__(self, window: QWidget) -> None:
         super().__init__()
         self._variables = Variables()
         self._window = window
@@ -649,12 +684,12 @@ class DebugWindowHandler(logging.Handler):
             widget = self._variables.get("widgets", "debug", None)
             if widget:
                 widget.insertHtml(f"{msg}<br/>")
-        except Exception as e:
+        except Exception:
             self.handleError(record)
 
 
 def _show_splash_screen() -> QSplashScreen:
-    splash_pixmap = QPixmap(os.path.join(ICONS_DIR, "pivuh.png"))
+    splash_pixmap = QPixmap(str(ICONS_DIR / "pivuh.png"))
 
     splash = QSplashScreen(splash_pixmap, Qt.WindowType.WindowStaysOnTopHint)
     splash.show()

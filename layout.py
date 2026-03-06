@@ -23,17 +23,18 @@ class LayoutConfig:
             return b"", b""
 
         try:
-            with open(path, "r") as f:
+            with path.open("r") as f:
                 data = json.load(f)
             geometry = base64.b64decode(data.get("geometry", ""))
             state = base64.b64decode(data.get("state", ""))
             self._logger.debug(
-                f"load: geometry={len(geometry)} bytes, state={len(state)} bytes",
+                "load: geometry=%d bytes, state=%d bytes", len(geometry), len(state)
             )
-            return geometry, state
-        except Exception as e:
-            self._logger.error(f"load: failed to load layout: {e}")
+        except Exception:
+            self._logger.exception("load: failed to load layout")
             return b"", b""
+        else:
+            return geometry, state
 
     def save(self, geometry: bytes, state: bytes) -> None:
         """Save geometry and state to config/layout.json."""
@@ -46,10 +47,10 @@ class LayoutConfig:
         }
 
         try:
-            with open(path, "w") as f:
+            with path.open("w") as f:
                 json.dump(data, f, indent=2)
             self._logger.debug(
-                f"save: geometry={len(geometry)} bytes, state={len(state)} bytes",
+                "save: geometry=%d bytes, state=%d bytes", len(geometry), len(state)
             )
-        except Exception as e:
-            self._logger.error(f"save: failed to save layout: {e}")
+        except Exception:
+            self._logger.exception("save: failed to save layout")

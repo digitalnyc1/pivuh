@@ -1,5 +1,6 @@
 import logging
 from enum import Enum, IntFlag
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from PyQt6.QtCore import (
     QObject,
@@ -38,7 +39,11 @@ from PyQt6.QtWidgets import (
 from config import Config
 from game import GameState
 from icons import Icons
+from utils import traced
 from variables import Variables
+
+if TYPE_CHECKING:
+    from main import MainWindow
 
 
 class QCompass(QWidget):
@@ -62,8 +67,7 @@ class QCompass(QWidget):
 
         self._config = Config()
         self._variables = Variables()
-
-        self._window = self._variables.get("widgets", "main_window", None)
+        self._window: "MainWindow" = cast("MainWindow", self.window())
 
         icon_size = self._config.get("presets", "compass.iconsize", 16)
 
@@ -389,7 +393,7 @@ class QCompass(QWidget):
         self.setStyleSheet("padding: 0px; margin: 0px;")
         self.setLayout(layout)
 
-    _DIRECTION_COMMANDS = {
+    _DIRECTION_COMMANDS: ClassVar[dict[CompassFlag, str]] = {
         CompassFlag.North: "north",
         CompassFlag.NorthEast: "northeast",
         CompassFlag.East: "east",
@@ -403,13 +407,14 @@ class QCompass(QWidget):
         CompassFlag.Down: "down",
     }
 
+    @traced(show_args=True)
     def _on_compass_button_click(self, direction: CompassFlag) -> None:
-        self._logger.debug(f"_on_compass_button_click({direction})")
         for flag, cmd in QCompass._DIRECTION_COMMANDS.items():
             if direction & flag:
-                self._window.command.Parse(cmd)
+                self._window.command.parse(cmd)
                 return
 
+    @traced(show_args=True)
     def update_compass(self, directions: CompassFlag) -> None:
         self.north_active.setVisible(
             bool(directions & QCompass.CompassFlag.North),
@@ -493,13 +498,14 @@ class QCompassButton(QLabel):
     clicked = pyqtSignal(int)
 
     def __init__(
-        self, direction: QCompass.CompassFlag | None = None,
+        self,
+        direction: QCompass.CompassFlag | None = None,
     ) -> None:
         super().__init__()
 
         self.direction = direction if direction is not None else QCompass.CompassFlag(0)
 
-    def mousePressEvent(self, ev: QMouseEvent | None) -> None:
+    def mousePressEvent(self, ev: QMouseEvent | None) -> None:  # noqa: N802
         if not ev:
             return
 
@@ -515,8 +521,7 @@ class QCustomTextEdit(QTextEdit):
 
         self._config = Config()
         self._variables = Variables()
-
-        self._window = self._variables.get("widgets", "main_window", None)
+        self._window: "MainWindow" = cast("MainWindow", self.window())
 
         self._id = widget_id
 
@@ -524,20 +529,18 @@ class QCustomTextEdit(QTextEdit):
         self.setReadOnly(True)
         self.setUndoRedoEnabled(False)
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
-        self.updateStyle()
+        self.update_style()
 
+    @traced(show_args=False)
     def _clear(self) -> None:
-        self._logger.debug("_clear: begin")
         self.clear()
-        self._logger.debug("_clear: end")
 
+    @traced(show_args=True)
     def _timestamp(self, checked: bool) -> bool:
-        self._logger.debug(f"_timestamp: begin checked({checked})")
-        self._logger.debug("_timestamp: end")
-        return True
+        # TODO: Toggle the timestamp setting for the window.
+        return checked
 
-    def contextMenuEvent(self, e: QContextMenuEvent | None) -> None:
-        # Get the default context menu
+    def contextMenuEvent(self, e: QContextMenuEvent | None) -> None:  # noqa: N802
         context_menu = self.createStandardContextMenu()
         if not context_menu:
             return
@@ -556,21 +559,20 @@ class QCustomTextEdit(QTextEdit):
         context_menu.addAction(timestamp_action)
 
         if e:
-            # Execute the context menu
             context_menu.exec(e.globalPos())
 
-    def insertHtml(self, text: str | None, ignore_visiblity: bool = False) -> None:
+    def insertHtml(self, text: str | None, ignore_visibility: bool = False) -> None:  # noqa: N802
         if text is None:
             return
 
-        if not ignore_visiblity and not self.isVisible():
+        if not ignore_visibility and not self.isVisible():
             return
 
         self.moveCursor(QTextCursor.MoveOperation.End)
         super().insertHtml(text)
         self.moveCursor(QTextCursor.MoveOperation.End)
 
-    def mousePressEvent(self, e: QMouseEvent | None) -> None:
+    def mousePressEvent(self, e: QMouseEvent | None) -> None:  # noqa: N802
         if not e:
             return
 
@@ -581,7 +583,7 @@ class QCustomTextEdit(QTextEdit):
 
         super().mousePressEvent(e)
 
-    def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:
+    def mouseReleaseEvent(self, e: QMouseEvent | None) -> None:  # noqa: N802
         if not e:
             return
 
@@ -589,12 +591,8 @@ class QCustomTextEdit(QTextEdit):
         if self.anchor:
             if self.anchor.startswith("http://") or self.anchor.startswith("https://"):
                 QDesktopServices.openUrl(QUrl(self.anchor))
-            else:
-                if (
-                    self._window
-                    and self._window.game_client.state == GameState.Connected
-                ):
-                    self._window.command.Parse(self.anchor)
+            elif self._window and self._window.game_client.state == GameState.Connected:
+                self._window.command.parse(self.anchor)
 
             QApplication.instance().setOverrideCursor(Qt.CursorShape.ArrowCursor)  # type: ignore[union-attr]
             self.anchor = ""
@@ -602,21 +600,21 @@ class QCustomTextEdit(QTextEdit):
 
         super().mouseReleaseEvent(e)
 
-    def setFont(self, font: QFont) -> None:
-        super().setFont(font)
+    def setFont(self, a0: QFont) -> None:  # noqa: N802
+        super().setFont(a0)
         color = self._config.get("presets", "game.color")
         bgcolor = self._config.get("presets", "game.bgcolor")
         self.setStyleSheet(
             f"""
             QCustomTextEdit {{
-                font-family: "{font.family()}";
-                font-size: {font.pointSize()}pt; color: {color};
+                font-family: "{a0.family()}";
+                font-size: {a0.pointSize()}pt; color: {color};
                 background-color: {bgcolor};
             }}
             """,
         )
 
-    def updateStyle(self) -> None:
+    def update_style(self) -> None:
         fontname = self._config.get("presets", "game.fontname")
         fontsize = self._config.get("presets", "game.fontsize")
         color = self._config.get("presets", "game.color")
@@ -674,7 +672,7 @@ class QIndicatorLabel(QLabel):
         self.setObjectName(title)
         self.setVisible(False)
 
-    def setVisible(self, visible: bool) -> None:
+    def setVisible(self, visible: bool) -> None:  # noqa: N802
         indicator = self.objectName().lower()
         self._variables.set("temporary", indicator, visible)
 
@@ -700,8 +698,7 @@ class QIndicators(QWidget):
 
         self._config = Config()
         self._variables = Variables()
-
-        self._window = self._variables.get("widgets", "main_window", None)
+        self._window = self.window()
 
         icon_size = self._config.get("presets", "indicator.iconsize", 28)
 
@@ -830,7 +827,6 @@ class QIndicators(QWidget):
         layout.addWidget(self.invisible)
         layout.addWidget(self.joined)
 
-        # self.setContentsMargins(0, 0, 0, 0)
         self.setStyleSheet("padding: 0px; margin: 0px;")
         self.setLayout(layout)
 
@@ -964,10 +960,10 @@ class QTimerBar(QProgressBar):
                 """,
             )
         else:
-            self._logger.error(f"QTimerBar unknown type: {bar_type}")
+            self._logger.error("QTimerBar unknown type: %s", bar_type)
 
+    @traced(show_args=True)
     def start(self, seconds: int) -> None:
-        self._logger.debug(f"start: seconds({seconds})")
         if not seconds:
             self._current_seconds = 0
             self._total_seconds = 0
@@ -983,9 +979,11 @@ class QTimerBar(QProgressBar):
             return
 
         seconds_left = self._total_seconds - self._current_seconds
-
         self._logger.debug(
-            f"update: _total_seconds({self._total_seconds}) _current_seconds({self._current_seconds}) seconds_left({seconds_left})",
+            "do_update: _total_seconds(%d) _current_seconds(%d) seconds_left(%d)",
+            self._total_seconds,
+            self._current_seconds,
+            seconds_left,
         )
 
         if self._type == self.TimerBarType.RoundTime:
@@ -1006,6 +1004,8 @@ class QTimerBar(QProgressBar):
 class QScriptButton(QToolButton):
     def __init__(self, script: str) -> None:
         super().__init__()
+
+        self._logger = logging.getLogger(self.__class__.__name__)
 
         self._script = script
 
@@ -1034,16 +1034,16 @@ class QScriptButton(QToolButton):
         self.clicked.connect(self.click_action)
 
     def click_action(self) -> None:
-        print(f"DEBUG: QScriptButton script({self._script}) action(click)")
+        self._logger.debug("click_action: script(%s)", self._script)
 
     def resume_action(self) -> None:
-        print(f"DEBUG: QScriptButton script({self._script}) action(resume)")
+        self._logger.debug("resume_action: script(%s)", self._script)
 
     def pause_action(self) -> None:
-        print(f"DEBUG: QScriptButton script({self._script}) action(pause)")
+        self._logger.debug("pause_action: script(%s)", self._script)
 
     def abort_action(self) -> None:
-        print(f"DEBUG: QScriptButton script({self._script}) action(abort)")
+        self._logger.debug("abort_action: script(%s)", self._script)
 
 
 class QHistoryLineEdit(QLineEdit):
@@ -1057,7 +1057,7 @@ class QHistoryLineEdit(QLineEdit):
         self._history: list[str] = []
         self._history_pos: int = 0
         self._variables = Variables()
-        self._window = self._variables.get("widgets", "main_window", None)
+        self._window: "MainWindow" = cast("MainWindow", self.window())
 
     def add_to_history(self, text: str) -> None:
         """Add a command to history and reset navigation position."""
@@ -1069,14 +1069,18 @@ class QHistoryLineEdit(QLineEdit):
         self._history_pos = len(self._history)
         self._current_input = ""
 
-    def keyPressEvent(self, a0: QKeyEvent | None) -> None:
+    def keyPressEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
+        """Handle key press event."""
         if not a0:
             return
 
         k = a0.key()
         m = a0.modifiers()
 
-        if k in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and m & Qt.KeyboardModifier.ControlModifier:
+        if (
+            k in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+            and m & Qt.KeyboardModifier.ControlModifier
+        ):
             if self._history and self._window:
                 self._window.command.parse(self._history[-1])
         elif k == Qt.Key.Key_Up:

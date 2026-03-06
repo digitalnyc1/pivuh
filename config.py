@@ -24,10 +24,12 @@ DEFAULTS: dict = {
     "presets": {
         "commands.color": "silver",
         "commands.bgcolor": "dimgray",
+        "compass.iconsize": 16,
         "game.color": "silver",
         "game.bgcolor": "#111111",
         "game.fontname": "Verdana",
         "game.fontsize": "9pt",
+        "indicator.iconsize": 28,
         "link.color": "dodgerblue",
         "link.bgcolor": "#111111",
         "minivitals.concentration.color": "white",
@@ -203,7 +205,7 @@ class Config:
 
         self.load()
 
-    def get(self, section: str, key: str, fallback: Any = None) -> Any:
+    def get(self, section: str, key: str, fallback: Any = None) -> Any:  # noqa: ANN401
         if section not in CONFIG:
             CONFIG[section] = {}
         return CONFIG[section].get(key, fallback)
@@ -213,7 +215,7 @@ class Config:
 
     def load(self, force_reload: bool = False) -> None:
         """Load configuration from disk, merging with built-in defaults."""
-        global CONFIG
+        global CONFIG  # noqa: PLW0603
 
         # Only load from disk if config is empty, unless a reload is forced.
         if CONFIG and not force_reload:
@@ -223,24 +225,26 @@ class Config:
 
         if Path(self._file).exists():
             try:
-                with open(self._file, "r") as json_file:
+                with Path(self._file).open("r") as json_file:
                     user = json.load(json_file)
                 merged = _deep_merge(merged, user)
-                _logger.debug(f"Config loaded from {self._file}")
-            except (json.JSONDecodeError, OSError) as exc:
-                _logger.warning(f"Could not read {self._file}: {exc}; using defaults")
+                _logger.debug("Config loaded from %s", self._file)
+            except (json.JSONDecodeError, OSError) as e:
+                _logger.warning(
+                    "Could not read %s: %s; using defaults", self._file, str(e)
+                )
         else:
-            _logger.debug(f"Config file {self._file} not found; using defaults")
+            _logger.debug("Config file %s not found; using defaults", self._file)
 
         CONFIG = merged
 
     def save(self) -> None:
         Path(self._file).parent.mkdir(parents=True, exist_ok=True)
-        with open(self._file, "w") as json_file:
+        with Path(self._file).open("w") as json_file:
             json.dump(CONFIG, json_file, indent=2, sort_keys=True)
-        _logger.debug(f"Config saved to {self._file}")
+        _logger.debug("Config saved to %s", self._file)
 
-    def set(self, section: str, key: str, value: Any) -> None:
+    def set(self, section: str, key: str, value: Any) -> None:  # noqa: ANN401
         if section not in CONFIG:
             CONFIG[section] = {}
         CONFIG[section][key] = value

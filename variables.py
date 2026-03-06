@@ -16,7 +16,7 @@ class Variables:
     def __init__(self, file: str = "config/variables.json") -> None:
         self._file = file
 
-    def get(self, group: str, key: str, fallback: Any = None) -> Any:
+    def get(self, group: str, key: str, fallback: Any = None) -> Any:  # noqa: ANN401
         if group not in VARIABLES:
             VARIABLES[group] = {}
         return VARIABLES[group].get(key, fallback)
@@ -28,7 +28,7 @@ class Variables:
         """Load all non-transient groups from disk, merging into current state."""
         if not Path(self._file).exists():
             return
-        with open(self._file, "r") as json_file:
+        with Path(self._file).open("r") as json_file:
             data: dict = json.load(json_file)
         for group, values in data.items():
             if group not in TRANSIENT_GROUPS:
@@ -44,10 +44,10 @@ class Variables:
             for group, values in VARIABLES.items()
             if group not in TRANSIENT_GROUPS
         }
-        with open(self._file, "w") as json_file:
+        with Path(self._file).open("w") as json_file:
             json.dump(data, json_file, indent=2, sort_keys=True)
 
-    def set(self, group: str, key: str, value: Any) -> None:
+    def set(self, group: str, key: str, value: Any) -> None:  # noqa: ANN401
         if group not in VARIABLES:
             VARIABLES[group] = {}
         VARIABLES[group][key] = value

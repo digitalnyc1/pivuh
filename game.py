@@ -1,10 +1,9 @@
 import logging
 import re
 import struct
-import time
 from enum import Enum
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, ClassVar, Union
 
 import requests
 from PyQt6.QtCore import (
@@ -22,7 +21,11 @@ from PyQt6.QtNetwork import (
 )
 
 from config import Config
+from utils import traced
 from variables import Variables
+
+if TYPE_CHECKING:
+    from main import MainWindow
 
 
 class EAccessState(Enum):
@@ -40,11 +43,11 @@ class EAccessClient(QThread):
     disconnected = pyqtSignal(str)
     message_received = pyqtSignal(str)
 
+    @traced(show_args=False)
     def __init__(self) -> None:
         super().__init__()
 
         self._logger = logging.getLogger(self.__class__.__name__)
-        self._logger.debug("__init__")
 
         self._config = Config()
         self._variables = Variables()
@@ -70,16 +73,12 @@ class EAccessClient(QThread):
         self._socket.readyRead.connect(self._read_data)
         self._socket.sslErrors.connect(self._handle_ssl_errors)
 
+    @traced(show_args=False)
     def _handle_error(self, socket_error: QSslSocket.SocketError) -> None:
-        self._logger.debug("_handle_error: begin")
+        self._logger.error("Socket error: %s", socket_error)
 
-        self._logger.error(f"Socket error: {socket_error}")
-
-        self._logger.debug("_handle_error: end")
-
+    @traced(show_args=False)
     def _handle_ssl_errors(self, ssl_errors: list[QSslError]) -> None:
-        self._logger.debug("_handle_ssl_errors: begin")
-
         ignored_errors = [
             "CertificateUntrusted",
             "HostNameMismatch",
@@ -88,15 +87,17 @@ class EAccessClient(QThread):
         for error in ssl_errors:
             if error.error().name in ignored_errors:
                 self._logger.debug(
-                    f"_handle_ssl_errors: ignoring expected SSL error: {error.error().name}",
+                    "_handle_ssl_errors: ignoring expected SSL error: %s",
+                    error.error().name,
                 )
                 self._socket.ignoreSslErrors()
             else:
                 self._logger.error(
-                    f"Eaccess SSL socket error: {error.error().name}({error.error().value}): {error.errorString()}",
+                    "Eaccess SSL socket error: %s(%s): %s",
+                    error.error().name,
+                    error.error().value,
+                    error.errorString(),
                 )
-
-        self._logger.debug("_handle_ssl_errors: end")
 
     def _hash_password(self) -> bytes:
         password = list(self._password[:32])
@@ -108,34 +109,26 @@ class EAccessClient(QThread):
             ],
         )
 
+    @traced(show_args=False)
     def _on_connected(self) -> None:
-        self._logger.debug("_on_connected: begin")
-
         self.connected.emit(f"Connected to {self._eaccess_host}:{self._eaccess_port}.")
 
-        self._logger.debug("_on_connected: end")
-
+    @traced(show_args=False)
     def _on_disconnected(self) -> None:
-        self._logger.debug("_on_disconnected: begin")
-
         self.do_disconnect()
         self.disconnected.emit(f"Connection to {self._eaccess_host} closed.")
 
-        self._logger.debug("_on_disconnected: end")
-
+    @traced(show_args=False)
     def _read_data(self) -> None:
         while self._socket.bytesAvailable():
             data = self._socket.readAll().data()
 
             if self.state == EAccessState.ListeningForKey:
                 self._hash_key, _, _ = data.partition(b"\n")
-                if len(self._hash_key) != 32:
-                    self._logger.error(
-                        f"Received invalid hash key from {self._eaccess_host}.",
-                    )
-                    self.message_received.emit(
-                        f"Received invalid hash key from {self._eaccess_host}.",
-                    )
+                if len(self._hash_key) != 32:  # noqa: PLR2004
+                    error = f"Received invalid hash key from {self._eaccess_host}."
+                    self._logger.error(error)
+                    self.message_received.emit(error)
                     self.state = EAccessState.InvalidResponse
                     self.do_disconnect()
                     return
@@ -154,8 +147,9 @@ class EAccessClient(QThread):
                     elif b"PASSWORD" in data:
                         reason = "bad password"
 
-                    self._logger.error(f"Login failed: {reason}.")
-                    self.message_received.emit(f"Login failed: {reason}.")
+                    error = f"Login failed: {reason}."
+                    self._logger.error(error)
+                    self.message_received.emit(error)
                     self.do_disconnect()
 
                 else:
@@ -165,12 +159,9 @@ class EAccessClient(QThread):
                         parts = data.split(b"\t")
                         self._login_key = parts[3]
                     except IndexError:
-                        self._logger.error(
-                            "Failed to parse login key from server response.",
-                        )
-                        self.message_received.emit(
-                            "Failed to parse login key from server response.",
-                        )
+                        error = "Failed to parse login key from server response."
+                        self._logger.exception(error)
+                        self.message_received.emit(error)
                         self.do_disconnect()
                         return
 
@@ -201,12 +192,9 @@ class EAccessClient(QThread):
                         instance = self._instance
                         account = self._account.decode("ascii")
 
-                        self._logger.error(
-                            f"Character {character} does not exist in game instance {instance} on account {account}.",
-                        )
-                        self.message_received.emit(
-                            f"Character {character} does not exist in game instance {instance} on account {account}.",
-                        )
+                        error = f"Character {character} does not exist in game instance {instance} on account {account}."
+                        self._logger.error(error)
+                        self.message_received.emit(error)
                         self.do_disconnect()
 
                 elif data.startswith(b"L\t"):
@@ -221,7 +209,7 @@ class EAccessClient(QThread):
                             game_host = parts[7]
                             game_port = parts[8]
                         except IndexError:
-                            self._logger.error(
+                            self._logger.exception(
                                 "Failed to parse game host/port from server response.",
                             )
                             self.message_received.emit(
@@ -240,25 +228,25 @@ class EAccessClient(QThread):
                             int(game_port.decode("ascii").replace("GAMEPORT=", "")),
                         )
                         self._variables.set(
-                            "protected", "login_key", self._login_key.decode("ascii"),
+                            "protected",
+                            "login_key",
+                            self._login_key.decode("ascii"),
                         )
                         self.do_disconnect()
 
                 elif data.startswith(b"X\t"):
-                    self._logger.error(
+                    error = (
                         "Login failed.  Please check that you have specified the correct account, password, character and game instance.",
                     )
-                    self.message_received.emit(
-                        "Login failed.  Please check that you have specified the correct account, password, character and game instance.",
-                    )
+                    self._logger.error(error)
+                    self.message_received.emit(error)
                     self.do_disconnect()
 
+    @traced(show_args=False)
     def connect(self) -> None:
         if self.state != EAccessState.Disconnected:
             self._logger.debug("connect: already connected")
             return
-
-        self._logger.debug("connect: begin")
 
         self._eaccess_host = self._config.get("game", "eaccess.host", "")
         self._eaccess_port = self._config.get("game", "eaccess.port", 0)
@@ -269,22 +257,16 @@ class EAccessClient(QThread):
 
         self._socket.connectToHostEncrypted(self._eaccess_host, self._eaccess_port)
         if not self._socket.waitForEncrypted(3000):
-            self.connected.emit(
-                f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
-            )
-            self._logger.error(
-                f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}.",
-            )
+            error = f"Failed to connect to {self._eaccess_host}:{self._eaccess_port}."
+            self.connected.emit(error)
+            self._logger.error(error)
             return
 
-        self._logger.debug("connect: end")
-
+    @traced(show_args=False)
     def authenticate(self) -> None:
         if not self._socket.isOpen():
             self._logger.error("Failed to authenticate: Not connected.")
             return
-
-        self._logger.debug("authenticate: begin")
 
         self._account = self._variables.get("temporary", "account", "").encode("ascii")
         self._password = self._variables.get("protected", "password", "").encode(
@@ -299,14 +281,17 @@ class EAccessClient(QThread):
         self._socket.write(b"K\n")
         self._socket.flush()
 
-        self._logger.debug("authenticate: end")
-
+    @traced(show_args=False)
     def do_disconnect(self) -> None:
-        if self.state == EAccessState.Disconnected or not self._socket.isOpen():
-            self._logger.debug("disconnect: already disconnected")
+        if self.state == EAccessState.Disconnected:
+            self._logger.debug("do_disconnect: already disconnected")
             return
 
-        self._logger.debug("disconnect: begin")
+        if not self._socket.isOpen():
+            self._logger.debug("do_disconnect: socket already closed, resetting state")
+            self._variables.set("protected", "password", "")
+            self.state = EAccessState.Disconnected
+            return
 
         self._socket.disconnectFromHost()
         if self._socket.state() == QSslSocket.SocketState.ConnectedState:
@@ -315,20 +300,15 @@ class EAccessClient(QThread):
         self._variables.set("protected", "password", "")
         self.state = EAccessState.Disconnected
 
-        self._logger.debug("disconnect: end")
-
+    @traced(show_args=False)
     def wait_for_login_key(self, timeout: int) -> bool:
-        self._logger.debug("wait_for_login_key: begin")
-
         loop = QEventLoop()
         self.disconnected.connect(loop.quit)
         QTimer.singleShot(timeout, loop.quit)
         loop.exec()
         self.disconnected.disconnect(loop.quit)
 
-        result = bool(self._variables.get("protected", "login_key", ""))
-        self._logger.debug(f"wait_for_login_key: end result({result})")
-        return result
+        return bool(self._variables.get("protected", "login_key", ""))
 
 
 class GameState(Enum):
@@ -343,11 +323,11 @@ class GameClient(QThread):
     message_received = pyqtSignal(str)
     update_vitals = pyqtSignal(str)
 
+    @traced(show_args=False)
     def __init__(self) -> None:
         super().__init__()
 
         self._logger = logging.getLogger(self.__class__.__name__)
-        self._logger.debug("__init__")
 
         self._config = Config()
         self._variables = Variables()
@@ -364,24 +344,20 @@ class GameClient(QThread):
         self._socket.errorOccurred.connect(self._handle_error)
         self._socket.readyRead.connect(self._read_data)
 
+    @traced(show_args=False)
     def _handle_error(self, socket_error: QTcpSocket.SocketError) -> None:
-        self._logger.error(f"Socket error: {socket_error}")
+        self._logger.error("Socket error: %s", socket_error)
 
+    @traced(show_args=False)
     def _on_connected(self) -> None:
-        self._logger.debug("_on_connected: begin")
-
         self.connected.emit(f"Connected to {self._game_host}:{self._game_port}.")
 
-        self._logger.debug("_on_connected: end")
-
+    @traced(show_args=False)
     def _on_disconnected(self) -> None:
-        self._logger.debug("_on_disconnected: begin")
-
         self.do_disconnect()
         self.disconnected.emit(f"Connection to {self._game_host} closed.")
 
-        self._logger.debug("_on_disconnected: end")
-
+    @traced(show_args=False)
     def _read_data(self) -> None:
         while self._socket.bytesAvailable():
             data = self._socket.readAll().data()
@@ -400,7 +376,7 @@ class GameClient(QThread):
                     self.do_disconnect()
                     break
 
-                elif re.search(rb"<settingsInfo.*?/>", data, flags=re.DOTALL):
+                if re.search(rb"<settingsInfo.*?/>", data, flags=re.DOTALL):
                     self._socket.write(b"<sendSettings/>\n")
                     self._socket.flush()
 
@@ -411,11 +387,13 @@ class GameClient(QThread):
             else:
                 try:
                     self.message_received.emit(data.decode("ascii"))
-                except UnicodeDecodeError as e:
-                    self._logger.error(
-                        f"Error decoding message received from game server: {e}\nMessage contents: {repr(data)}",
+                except UnicodeDecodeError:
+                    self._logger.exception(
+                        "Error decoding message received from game server. Message contents: %r",
+                        data,
                     )
 
+    @traced(show_args=False)
     def authenticate(self) -> None:
         if not self._socket.isOpen():
             self._logger.error("Failed to authenticate: Not connected.")
@@ -429,20 +407,16 @@ class GameClient(QThread):
             self._logger.error("Login key is not set.")
             return
 
-        self._logger.debug("authenticate: begin")
-
         ident = self._config.get("client", "client.ident", "")
         self._socket.write(f"<c>{self._login_key}\n".encode("ascii"))
         self._socket.write(f"<c>{ident}\n".encode("ascii"))
         self._socket.flush()
-        self._logger.debug("authenticate: end")
 
+    @traced(show_args=False)
     def connect(self) -> None:
         if self.state != GameState.Disconnected:
             self._logger.debug("connect: already connected")
             return
-
-        self._logger.debug("connect: begin")
 
         self._game_host = self._variables.get("temporary", "game_host", "")
         self._game_port = self._variables.get("temporary", "game_port", 0)
@@ -457,19 +431,17 @@ class GameClient(QThread):
                 f"Failed to connect to {self._game_host}:{self._game_port}.",
             )
             self._logger.error(
-                f"Failed to connect to {self._game_host}:{self._game_port}.",
+                "Failed to connect to %s:%d.", self._game_host, self._game_port
             )
             return
 
         self.state = GameState.SendSettings
-        self._logger.debug("connect: end")
 
+    @traced(show_args=False)
     def do_disconnect(self) -> None:
         if self.state == GameState.Disconnected or not self._socket.isOpen():
-            self._logger.debug("disconnect: already disconnected")
+            self._logger.debug("do_disconnect: already disconnected")
             return
-
-        self._logger.debug("disconnect: begin")
 
         self._socket.disconnectFromHost()
         if self._socket.state() == QTcpSocket.SocketState.ConnectedState:
@@ -477,8 +449,7 @@ class GameClient(QThread):
 
         self.state = GameState.Disconnected
 
-        self._logger.debug("disconnect: end")
-
+    @traced(show_args=False)
     def send(self, message: str) -> None:
         if not self._socket.isOpen():
             self._logger.debug("send: not connected")
@@ -496,7 +467,7 @@ class GameParser(QObject):
     update_roundtime = pyqtSignal(int)
     update_window = pyqtSignal(str, str)
 
-    _room_attributes = [
+    _room_attributes: ClassVar[list[str]] = [
         "roomname",
         "roomdesc",
         "roomobjs",
@@ -505,16 +476,17 @@ class GameParser(QObject):
         "roomextra",
     ]
 
-    def __init__(self) -> None:
+    @traced(show_args=False)
+    def __init__(self, window: "MainWindow") -> None:
         super().__init__()
         self._logger = logging.getLogger(self.__class__.__name__)
 
+        self._buffer = ""
         self._config = Config()
         self._variables = Variables()
+        self._window = window
 
-        self._buffer = ""
-        self._window = self._variables.get("widgets", "main_window", None)
-
+    @traced(show_args=False)
     def _download_portrait(self, portrait_id: str) -> bool:
         portrait_timeout = self._config.get("game", "portrait.timeout")
         portrait_url = self._config.get("game", "portrait.url")
@@ -522,15 +494,21 @@ class GameParser(QObject):
         dest = Path.cwd() / "cache" / f"{portrait_id}.jpg"
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=portrait_timeout)
             response.raise_for_status()
             dest.write_bytes(response.content)
-            self._logger.debug(f"_download_portrait: saved portrait {portrait_id}")
-            return True
+            self._logger.debug("_download_portrait: saved portrait %s", portrait_id)
         except Exception as e:
-            self._logger.warning(f"_download_portrait: failed to download portrait {portrait_id}: {e}")
+            self._logger.warning(
+                "_download_portrait: failed to download portrait %s: %s",
+                portrait_id,
+                str(e),
+            )
             return False
+        else:
+            return True
 
+    @traced(show_args=False)
     def parse(self, message: str) -> None:
         self._buffer += message
 
@@ -549,11 +527,9 @@ class GameParser(QObject):
         remaining = self._buffer[groups.end() :]
         self._buffer = self._buffer[: groups.end()]
 
-        start_time = time.perf_counter()
-
         gametime = int(groups.group(1))
         prompt = groups.group(2)
-        self._logger.debug(f"Prompt received: gametime({gametime}) prompt({prompt})")
+        self._logger.debug("Prompt received: gametime(%d) prompt(%s)", gametime, prompt)
 
         # Remove ANSI control characters and escape sequences, but leave newlines
         self._buffer = re.sub(
@@ -564,7 +540,7 @@ class GameParser(QObject):
 
         # Process the buffer
         # Note: Order of tag processing is important in certain cases
-        self._logger.debug(f"Parse before: {repr(self._buffer)}")
+        self._logger.debug("parse before: %r", self._buffer)
 
         # <prompt></prompt>
         self._variables.set("temporary", "gametime", gametime)
@@ -667,13 +643,13 @@ class GameParser(QObject):
         ):
             style_id = groups.group(1).lower()
             content = groups.group(2)
-            self._logger.debug(f"style: style_id({style_id}) content({content})")
+            self._logger.debug("style: style_id(%s) content(%s)", style_id, content)
 
             color = self._config.get("presets", f"{style_id}.color", "")
             bgcolor = self._config.get("presets", f"{style_id}.bgcolor", "")
 
             self._buffer = re.sub(
-                rf"""<style id=['"].*?['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
+                r"""<style id=['"].*?['"].*?/>(.*?)\n?<style id=['"]['"]/>\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1</span><br/>""",
                 self._buffer,
                 flags=re.DOTALL,
@@ -687,7 +663,7 @@ class GameParser(QObject):
         ):
             preset_id = groups.group(1).lower()
             content = groups.group(2)
-            self._logger.debug(f"preset: preset_id({preset_id}) content({content})")
+            self._logger.debug("preset: preset_id(%s) content(%s)", preset_id, content)
 
             color = self._config.get("presets", f"{preset_id}.color", "")
             bgcolor = self._config.get("presets", f"{preset_id}.bgcolor", "")
@@ -697,7 +673,7 @@ class GameParser(QObject):
                 end = "<br/>"
 
             self._buffer = re.sub(
-                rf"""<preset id=['"].*?['"]>\n?(.*?)\n?</preset>\s*\n?""",
+                r"""<preset id=['"].*?['"]>\n?(.*?)\n?</preset>\s*\n?""",
                 rf"""<span style="color: {color}; background-color: {bgcolor};">\1{end}</span>""",
                 self._buffer,
                 flags=re.DOTALL,
@@ -709,8 +685,8 @@ class GameParser(QObject):
             self._buffer,
             flags=re.DOTALL,
         ):
-            contaner_id = groups.group(1)
-            self.clear_window.emit(contaner_id)
+            container_id = groups.group(1)
+            self.clear_window.emit(container_id)
 
         self._buffer = re.sub(
             r"""<clearContainer.*?/>\n?""",
@@ -727,7 +703,7 @@ class GameParser(QObject):
         ):
             stream_id = groups.group(1)
             self.clear_window.emit(stream_id)
-            self._logger.debug(f"clearStream: stream_id({stream_id})")
+            self._logger.debug("clearStream: stream_id(%s)", stream_id)
 
         self._buffer = re.sub(
             r"""<clearStream.*?/>\n?""",
@@ -747,13 +723,16 @@ class GameParser(QObject):
             subtitle = groups.group(3)
             roomid = groups.group(4) or "**"
             self._logger.debug(
-                f"streamWindow: stream_id({stream_id}) title({title}) subtitle({subtitle}) roomid({roomid})",
+                "streamWindow: stream_id(%s) title(%s) subtitle(%s) roomid(%s)",
+                stream_id,
+                title,
+                subtitle,
+                roomid,
             )
-            if stream_id == "room":
-                if subtitle:
-                    self._variables.set("temporary", "roomname", subtitle)
-                    self._variables.set("temporary", "roomid", roomid)
-                    update_room = True
+            if stream_id == "room" and subtitle:
+                self._variables.set("temporary", "roomname", subtitle)
+                self._variables.set("temporary", "roomid", roomid)
+                update_room = True
 
         self._buffer = re.sub(
             r"""<streamWindow.*?/>\n?""",
@@ -772,7 +751,7 @@ class GameParser(QObject):
             content = groups.group(2)
             content = content.replace("\n", "<br/>").replace("</pre><br/>", "</pre>")
             self._logger.debug(
-                f"pushStream/popStream: stream_id({stream_id}) content({repr(content)})",
+                "pushStream/popStream: stream_id(%s) content(%r)", stream_id, content
             )
             if stream_id != "room" and content:
                 self.update_window.emit(stream_id, content)
@@ -815,10 +794,8 @@ class GameParser(QObject):
             elif "Trading" in compdef_id:
                 guild = "Trader"
 
-            self._logger.debug(f"compDef: compdef_id({compdef_id}) guild({guild})")
-            if guild != "Commoner":
-                self._variables.set("temporary", "guild", guild)
-                self._logger.debug(f"guild({guild})")
+            self._variables.set("temporary", "guild", guild)
+            self._logger.debug("compDef: compdef_id(%s) guild(%s)", compdef_id, guild)
 
         self._buffer = re.sub(
             r"""<compDef.*?/>\n?""",
@@ -836,8 +813,10 @@ class GameParser(QObject):
             component_id = groups.group(1)
             content = groups.group(2)
             # TODO: HTML tags are needed for the room window, but complicate the roomobjs variable
-            # content = re.sub(r"<[^>]*>", "", content)
-            self._logger.debug(f"component: component_id({component_id}) content({content})")
+            # content = re.sub(r"<[^>]*>", "", content)  # noqa: ERA001
+            self._logger.debug(
+                "component: component_id(%s) content(%s)", component_id, content
+            )
 
             if component_id.startswith("room "):
                 component_id = component_id.replace(" ", "")
@@ -853,29 +832,29 @@ class GameParser(QObject):
                     self.update_window.emit("experience", f"{content}<br/>")
 
                 # Normal experience style
-                groups = re.match(
+                _groups = re.match(
                     rf"^\s+{skill}:\s+(\d+)\s(\d+)%\s+(.*?)\s*$",
                     content,
                     flags=re.DOTALL,
                 )
-                if not groups:
+                if not _groups:
                     # ExpBrief experience style
-                    groups = re.match(
+                    _groups = re.match(
                         r"^.*?:\s+(\d+)\s(\d+)%\s+\[\s?(\d+)/34]$",
                         content,
                         flags=re.DOTALL,
                     )
 
-                if groups:
+                if _groups:
                     ranks = float(
                         ".".join(
                             [
-                                groups.group(1),
-                                groups.group(2),
+                                _groups.group(1),
+                                _groups.group(2),
                             ],
                         ),
                     )
-                    mindstate = int(MindState.to_int(groups.group(3)))
+                    mindstate = int(MindState.to_int(_groups.group(3)))
                     if skill and ranks and mindstate:
                         self._variables.set("temporary", f"{skill}.Ranks", ranks)
                         self._variables.set(
@@ -884,7 +863,10 @@ class GameParser(QObject):
                             mindstate,
                         )
                         self._logger.debug(
-                            f"Updating skill info: skill({skill}) ranks({ranks}) mindstate({mindstate})",
+                            "Updating skill info: skill(%s) ranks(%s) mindstate(%s)",
+                            skill,
+                            ranks,
+                            mindstate,
                         )
 
         self._buffer = re.sub(
@@ -918,7 +900,7 @@ class GameParser(QObject):
         ):
             inv_id = groups.group(1)
             content = groups.group(2)
-            self._logger.debug(f"inv: inv_id({inv_id}) content({content})")
+            self._logger.debug("inv: inv_id(%s) content(%s)", inv_id, content)
             self.update_window.emit(inv_id, f"{content}<br/>")
 
         self._buffer = re.sub(
@@ -970,7 +952,8 @@ class GameParser(QObject):
                 content = re.sub(r"""<progressBar.*?/>""", "", content, flags=re.DOTALL)
             else:
                 self._logger.debug(
-                    f"dialogData: ignoring content with unsupported dialogData id: {dialog_id}",
+                    "dialogData: ignoring content with unsupported dialogData id: %s",
+                    dialog_id,
                 )
 
         # <dialogData></dialogData>
@@ -1102,7 +1085,7 @@ class GameParser(QObject):
             flags=re.DOTALL,
         ):
             picture_id = groups.group(1)
-            self._logger.debug(f"resource: picture({picture_id})")
+            self._logger.debug("resource: picture(%s)", picture_id)
             if picture_id != "0":
                 file_name = Path.cwd() / "cache" / f"{picture_id}.jpg"
                 if not file_name.exists():
@@ -1156,7 +1139,10 @@ class GameParser(QObject):
             roundtime = value - gametime
             self._variables.set("temporary", "roundtime", roundtime)
             self._logger.debug(
-                f"roundtime: value({value}) gametime({gametime}) roundtime({roundtime})",
+                "roundtime: value(%s) gametime(%s) roundtime(%s)",
+                value,
+                gametime,
+                roundtime,
             )
             self.update_roundtime.emit(roundtime)
 
@@ -1177,7 +1163,10 @@ class GameParser(QObject):
             casttime = value - gametime
             self._variables.set("temporary", "casttime", casttime)
             self._logger.debug(
-                f"casttime: value({value}) gametime({gametime}) castime({casttime})",
+                "casttime: value(%s) gametime(%s) castime(%s)",
+                value,
+                gametime,
+                casttime,
             )
             self.update_casttime.emit(casttime)
 
@@ -1213,7 +1202,10 @@ class GameParser(QObject):
                 self._variables.set("temporary", f"{skill}.Ranks", ranks)
                 self._variables.set("temporary", f"{skill}.LearningRate", mindstate)
                 self._logger.debug(
-                    f"Updating skill info: skill({skill}) ranks({ranks}) mindstate({mindstate})",
+                    "Updating skill info: skill(%s) ranks(%s) mindstate(%s)",
+                    skill,
+                    ranks,
+                    mindstate,
                 )
 
         # Check if room window needs to be updated
@@ -1247,32 +1239,24 @@ class GameParser(QObject):
         allowed_tags = ["a", "br", "font", "img", "pre", "span"]
         for tag in re.findall(r"<([^\s>/]+)", self._buffer):
             if tag.lower() not in allowed_tags:
-                self._logger.warning(
-                    f"Found disallowed tag: {tag}\n{self._buffer}\n---\n",
-                )
+                self._logger.warning("Found disallowed tag: %s", tag)
 
         # Final buffer cleanup
         self._buffer = self._buffer.removeprefix("\n").replace("\n", "<br/>")
 
-        self._logger.debug(f"Parse after: {repr(self._buffer)}")
+        self._logger.debug("parse after: %r", self._buffer)
 
         # If all we have is a prompt, don't display it
         if self._buffer:
             self.update_window.emit("main", self._buffer)
 
-        end_time = time.perf_counter()
-        exec_time = (end_time - start_time) * 1000
-
-        self._logger.debug(f"execution time: {exec_time}")
-
         self._buffer = ""
-
         if remaining:
             self.parse(remaining)
 
 
 class MindState:
-    _mapping = {
+    _mapping: ClassVar[dict[str, int]] = {
         "clear": 0,
         "dabbling": 1,
         "perusing": 2,
@@ -1320,7 +1304,7 @@ class MindState:
             key = int(key)
         except ValueError:
             return 0
-        if 0 <= key <= 34:
-            return key
 
+        if 0 <= key <= 34:  # noqa: PLR2004
+            return key
         return 0

@@ -4,19 +4,19 @@ from pathlib import Path
 
 from PyQt6.QtGui import QIcon
 
-# Ensure the local images directory exists, copying from PyInstaller bundle if needed
+# Ensure the local images directory exists, copying from PyInstaller bundle if needed.
 ICONS_DIR = Path("images")
 if not ICONS_DIR.exists():
     if hasattr(sys, "_MEIPASS"):
-        bundled_images = Path(sys._MEIPASS) / "images"  # pyright: ignore[reportAttributeAccessIssue]
+        bundled_images = Path(sys._MEIPASS) / "images"  # pyright: ignore[reportAttributeAccessIssue]  # noqa: SLF001
         if bundled_images.exists():
             shutil.copytree(bundled_images, ICONS_DIR)
         else:
-            raise FileNotFoundError(
-                f"Images directory not found at '{ICONS_DIR}' or in the PyInstaller bundle ('{bundled_images}').",
-            )
+            error = f"Images directory not found at '{ICONS_DIR}' or in the PyInstaller bundle ('{bundled_images}')."
+            raise FileNotFoundError(error)
     else:
-        raise FileNotFoundError(f"Images directory not found at '{ICONS_DIR}'.")
+        error = f"Images directory not found at '{ICONS_DIR}'."
+        raise FileNotFoundError(error)
 
 
 class Icons:
@@ -25,11 +25,10 @@ class Icons:
     def __new__(cls) -> "Icons":
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
         return cls._instance
 
     def __init__(self) -> None:
-        if self._initialized:
+        if hasattr(self, "_initialized"):
             return
         self._initialized = True
         # General icons

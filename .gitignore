@@ -4,3 +4,4 @@ cache/
 config/
 dist/
 Pivuh.spec
+venv

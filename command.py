@@ -1,24 +1,30 @@
 import html
-import importlib
 import logging
 import re
+from typing import TYPE_CHECKING
 
 from PyQt6.QtWidgets import QDockWidget
 
 from config import Config
+from game import GameState
 from layout import LayoutConfig
+from utils import traced
 from variables import Variables
+
+if TYPE_CHECKING:
+    from main import MainWindow
 
 
 class CommandParser:
-    def __init__(self) -> None:
+    @traced(show_args=False)
+    def __init__(self, window: "MainWindow") -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
         self._variables = Variables()
+        self._window = window
 
-        self._window = self._variables.get("widgets", "main_window", None)
-
+    @traced(show_args=False)
     def parse(self, command_input: str) -> None:
         command_input = re.sub(r"\s+", " ", command_input.strip())
 
@@ -33,12 +39,12 @@ class CommandParser:
         if command.startswith("#"):
             if command == "#connect":
                 usage = f"<br/>Usage:<br/>{tab}<code>{command} [account] [password] [character] [instance]</code>"
-                if self._window.game_client.state.name == "Connected":
+                if self._window.game_client.state == GameState.Connected:
                     self._logger.debug("#connect: already connected")
                     return
 
                 args_list = args.split(" ")
-                if len(args_list) != 4:
+                if len(args_list) != 4:  # noqa: PLR2004
                     self._window.main.insertHtml(usage)
                     return
 
@@ -84,7 +90,7 @@ class CommandParser:
                 self._window.game_client.do_disconnect()
                 self._window.close()
 
-            elif command == "#highlight" or command == "#highlights":
+            elif command in ("#highlight", "#highlights"):
                 usage = (
                     f"<br/>Usage:"
                     f"<br/>{tab}<code>{command} list</code>"
@@ -145,7 +151,9 @@ class CommandParser:
                         )
                         return
 
-                    highlights.append({"pattern": pattern, "color": color, "bgcolor": bgcolor})
+                    highlights.append(
+                        {"pattern": pattern, "color": color, "bgcolor": bgcolor},
+                    )
                     self._config.set("highlights", "rules", highlights)
                     self._window.main.insertHtml(
                         f"<br/>Highlight #{len(highlights)} added:<br/>{tab}"
@@ -155,8 +163,7 @@ class CommandParser:
 
                 elif subcommand.startswith("r"):
                     remove_usage = (
-                        f"<br/>Usage:"
-                        f"<br/>{tab}<code>{command} remove [index]</code>"
+                        f"<br/>Usage:<br/>{tab}<code>{command} remove [index]</code>"
                     )
                     remove_args = args_list[1].strip() if len(args_list) > 1 else ""
                     if not remove_args:
@@ -206,84 +213,14 @@ class CommandParser:
                         self._window.restoreState(state)
                     self._window.main.insertHtml("<br/>Layout loaded.")
                 elif subcommand.startswith("s"):
-                    geometry = self._window.saveGeometry()
-                    self._window.main.insertHtml("<br/>Layout saved.")
-                    self._logger.debug(f"MainWindow geometry: {geometry}")
-
-                    state = self._window.saveState()
-                    self._logger.debug(f"MainWindow state: {state}")
-
+                    geometry = self._window.saveGeometry().data()
+                    state = self._window.saveState().data()
                     LayoutConfig().save(geometry, state)
+                    self._window.main.insertHtml("<br/>Layout saved.")
                 else:
                     self._window.main.insertHtml(usage)
 
-            elif command == "#reload":
-                usage = f"<br/>Usage:<br/>{tab}<code>{command} [command|game]</code>"
-                args_list = args.split(" ") if args else []
-                if len(args_list) != 1 or not args_list[0]:
-                    self._window.main.insertHtml(usage)
-                    return
-                subcommand = args_list[0]
-                if subcommand.startswith("c"):
-                    import command as _command_module
-
-                    importlib.reload(_command_module)
-                    self._window.command = _command_module.CommandParser()
-                    self._window.main.insertHtml("<br/>Command parser reloaded.")
-                elif subcommand.startswith("g"):
-                    import game as _game_module
-
-                    old_parser = self._window.game_parser
-                    old_parser.clear_window.disconnect(
-                        self._window._on_clear_window,
-                    )
-                    old_parser.update_casttime.disconnect(
-                        self._window._on_update_casttime,
-                    )
-                    old_parser.update_compass.disconnect(
-                        self._window._on_update_compass,
-                    )
-                    old_parser.update_indicators.disconnect(
-                        self._window._on_update_indicators,
-                    )
-                    old_parser.update_minivitals.disconnect(
-                        self._window._on_update_minivitals,
-                    )
-                    old_parser.update_roundtime.disconnect(
-                        self._window._on_update_roundtime,
-                    )
-                    old_parser.update_window.disconnect(
-                        self._window._on_update_window,
-                    )
-
-                    importlib.reload(_game_module)
-                    self._window.game_parser = _game_module.GameParser()
-                    self._window.game_parser.clear_window.connect(
-                        self._window._on_clear_window,
-                    )
-                    self._window.game_parser.update_casttime.connect(
-                        self._window._on_update_casttime,
-                    )
-                    self._window.game_parser.update_compass.connect(
-                        self._window._on_update_compass,
-                    )
-                    self._window.game_parser.update_indicators.connect(
-                        self._window._on_update_indicators,
-                    )
-                    self._window.game_parser.update_minivitals.connect(
-                        self._window._on_update_minivitals,
-                    )
-                    self._window.game_parser.update_roundtime.connect(
-                        self._window._on_update_roundtime,
-                    )
-                    self._window.game_parser.update_window.connect(
-                        self._window._on_update_window,
-                    )
-                    self._window.main.insertHtml("<br/>Game parser reloaded.")
-                else:
-                    self._window.main.insertHtml(usage)
-
-            elif command == "#toolbar" or command == "#toolbars":
+            elif command in ("#toolbar", "#toolbars"):
                 usage = f"<br/>Usage:<br/>{tab}<code>{command} [lock|unlock]</code>"
                 args_list = args.split(" ")
                 if len(args_list) != 1:
@@ -291,10 +228,10 @@ class CommandParser:
                     return
                 subcommand = args_list[0]
                 if subcommand.startswith("l"):
-                    self._window._on_unlock_toolbars(False)
+                    self._window.unlock_toolbars(False)
                     self._window.main.insertHtml("<br/>Toolbars locked.")
                 elif subcommand.startswith("u"):
-                    self._window._on_unlock_toolbars(True)
+                    self._window.unlock_toolbars(True)
                     self._window.main.insertHtml("<br/>Toolbars unlocked.")
                 else:
                     self._window.main.insertHtml(usage)
@@ -323,14 +260,12 @@ class CommandParser:
                     return
 
                 subcommand = args_list[0]
-                if not subcommand.startswith("l") and len(args_list) != 2:
+                if not subcommand.startswith("l") and len(args_list) != 2:  # noqa: PLR2004
                     self._window.main.insertHtml(usage)
                     return
 
                 windows_list = [
-                    w
-                    for w in self._variables.items("widgets")
-                    if w != "main_window" and w != "main"
+                    w for w in self._variables.items("widgets") if w != "main"
                 ]
                 if subcommand.startswith("l"):
                     self._window.main.insertHtml(
@@ -339,7 +274,7 @@ class CommandParser:
                     return
 
                 window_name = args_list[1]
-                if window_name == "main_window" or window_name == "main":
+                if window_name == "main":
                     self._window.main.insertHtml(
                         f"<br/>Window {window_name} cannot be shown/hidden.",
                     )
@@ -367,7 +302,7 @@ class CommandParser:
 
         else:
             self._variables.set("temporary", "lastcommand", command_input)
-            if self._window.game_client.state.name != "Connected":
+            if self._window.game_client.state != GameState.Connected:
                 self._window.main.insertHtml(f"<br/>({command_input})")
             else:
                 color = self._config.get("presets", "commands.color", "")
