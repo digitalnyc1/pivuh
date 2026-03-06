@@ -60,370 +60,6 @@ class QCompass(QWidget):
         Up = 512
         Down = 1024
 
-    def __init__(self) -> None:
-        super().__init__()
-
-        self._logger = logging.getLogger(self.__class__.__name__)
-
-        self._config = Config()
-        self._icon_size = self._config.get("presets", "compass.iconsize", 16)
-        self._variables = Variables()
-
-        self._setup_compass()
-        self._setup_layout()
-
-    @traced(show_args=False)
-    def _setup_compass(self) -> None:
-        self._setup_north()
-        self._setup_northeast()
-        self._setup_east()
-        self._setup_southeast()
-        self._setup_south()
-        self._setup_southwest()
-        self._setup_west()
-        self._setup_northwest()
-        self._setup_out()
-        self._setup_up()
-        self._setup_down()
-
-    def _setup_north(self) -> None:
-        self.north_active = QCompassButton(QCompass.CompassFlag.North)
-        self.north_active.setAccessibleDescription("North (Active)")
-        self.north_active.setContentsMargins(0, 0, 0, 0)
-        self.north_active.setPixmap(
-            Icons().NorthActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.north_active.setVisible(False)
-        self.north_active.clicked.connect(self._on_compass_button_click)
-
-        self.north_inactive = QLabel()
-        self.north_inactive.setAccessibleDescription("North (Inactive)")
-        self.north_inactive.setContentsMargins(0, 0, 0, 0)
-        self.north_inactive.setPixmap(
-            Icons().NorthInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_northeast(self) -> None:
-        self.northeast_active = QCompassButton(QCompass.CompassFlag.NorthEast)
-        self.northeast_active.setAccessibleDescription("Northeast (Active)")
-        self.northeast_active.setContentsMargins(0, 0, 0, 0)
-        self.northeast_active.setPixmap(
-            Icons().NorthEastActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.northeast_active.setVisible(False)
-        self.northeast_active.clicked.connect(self._on_compass_button_click)
-
-        self.northeast_inactive = QLabel()
-        self.northeast_inactive.setAccessibleDescription("Northeast (Inactive)")
-        self.northeast_inactive.setContentsMargins(0, 0, 0, 0)
-        self.northeast_inactive.setPixmap(
-            Icons().NorthEastInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_east(self) -> None:
-        self.east_active = QCompassButton(QCompass.CompassFlag.East)
-        self.east_active.setAccessibleDescription("East (Active)")
-        self.east_active.setContentsMargins(0, 0, 0, 0)
-        self.east_active.setPixmap(
-            Icons().EastActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.east_active.setVisible(False)
-        self.east_active.clicked.connect(self._on_compass_button_click)
-
-        self.east_inactive = QLabel()
-        self.east_inactive.setAccessibleDescription("East (Inactive)")
-        self.east_inactive.setContentsMargins(0, 0, 0, 0)
-        self.east_inactive.setPixmap(
-            Icons().EastInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_southeast(self) -> None:
-        self.southeast_active = QCompassButton(QCompass.CompassFlag.SouthEast)
-        self.southeast_active.setAccessibleDescription("Southeast (Active)")
-        self.southeast_active.setContentsMargins(0, 0, 0, 0)
-        self.southeast_active.setPixmap(
-            Icons().SouthEastActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.southeast_active.setVisible(False)
-        self.southeast_active.clicked.connect(self._on_compass_button_click)
-
-        self.southeast_inactive = QLabel()
-        self.southeast_inactive.setAccessibleDescription("Southeast (Inactive)")
-        self.southeast_inactive.setContentsMargins(0, 0, 0, 0)
-        self.southeast_inactive.setPixmap(
-            Icons().SouthEastInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_south(self) -> None:
-        self.south_active = QCompassButton(QCompass.CompassFlag.South)
-        self.south_active.setAccessibleDescription("South (Active)")
-        self.south_active.setContentsMargins(0, 0, 0, 0)
-        self.south_active.setPixmap(
-            Icons().SouthActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.south_active.setVisible(False)
-        self.south_active.clicked.connect(self._on_compass_button_click)
-
-        self.south_inactive = QLabel()
-        self.south_inactive.setAccessibleDescription("South (Inactive)")
-        self.south_inactive.setContentsMargins(0, 0, 0, 0)
-        self.south_inactive.setPixmap(
-            Icons().SouthInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_southwest(self) -> None:
-        self.southwest_active = QCompassButton(QCompass.CompassFlag.SouthWest)
-        self.southwest_active.setAccessibleDescription("Southwest (Active)")
-        self.southwest_active.setContentsMargins(0, 0, 0, 0)
-        self.southwest_active.setPixmap(
-            Icons().SouthWestActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.southwest_active.setVisible(False)
-        self.southwest_active.clicked.connect(self._on_compass_button_click)
-
-        self.southwest_inactive = QLabel()
-        self.southwest_inactive.setAccessibleDescription("Southwest (Inactive)")
-        self.southwest_inactive.setContentsMargins(0, 0, 0, 0)
-        self.southwest_inactive.setPixmap(
-            Icons().SouthWestInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_west(self) -> None:
-        self.west_active = QCompassButton(QCompass.CompassFlag.West)
-        self.west_active.setAccessibleDescription("West (Active)")
-        self.west_active.setContentsMargins(0, 0, 0, 0)
-        self.west_active.setPixmap(
-            Icons().WestActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.west_active.setVisible(False)
-        self.west_active.clicked.connect(self._on_compass_button_click)
-
-        self.west_inactive = QLabel()
-        self.west_inactive.setAccessibleDescription("West (Inactive)")
-        self.west_inactive.setContentsMargins(0, 0, 0, 0)
-        self.west_inactive.setPixmap(
-            Icons().WestInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_northwest(self) -> None:
-        self.northwest_active = QCompassButton(QCompass.CompassFlag.NorthWest)
-        self.northwest_active.setAccessibleDescription("Northwest (Active)")
-        self.northwest_active.setContentsMargins(0, 0, 0, 0)
-        self.northwest_active.setPixmap(
-            Icons().NorthWestActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.northwest_active.setVisible(False)
-        self.northwest_active.clicked.connect(self._on_compass_button_click)
-
-        self.northwest_inactive = QLabel()
-        self.northwest_inactive.setAccessibleDescription("Northwest (Inactive)")
-        self.northwest_inactive.setContentsMargins(0, 0, 0, 0)
-        self.northwest_inactive.setPixmap(
-            Icons().NorthWestInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_out(self) -> None:
-        self.out_active = QCompassButton(QCompass.CompassFlag.Out)
-        self.out_active.setAccessibleDescription("Out (Active)")
-        self.out_active.setContentsMargins(0, 0, 0, 0)
-        self.out_active.setPixmap(
-            Icons().OutActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.out_active.setVisible(False)
-        self.out_active.clicked.connect(self._on_compass_button_click)
-
-        self.out_inactive = QLabel()
-        self.out_inactive.setAccessibleDescription("Out (Inactive)")
-        self.out_inactive.setContentsMargins(0, 0, 0, 0)
-        self.out_inactive.setPixmap(
-            Icons().OutInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_up(self) -> None:
-        self.up_active = QCompassButton(QCompass.CompassFlag.Up)
-        self.up_active.setAccessibleDescription("Up (Active)")
-        self.up_active.setContentsMargins(0, 0, 0, 0)
-        self.up_active.setPixmap(
-            Icons().UpActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.up_active.setVisible(False)
-        self.up_active.clicked.connect(self._on_compass_button_click)
-
-        self.up_inactive = QLabel()
-        self.up_inactive.setAccessibleDescription("Up (Inactive)")
-        self.up_inactive.setContentsMargins(0, 0, 0, 0)
-        self.up_inactive.setPixmap(
-            Icons().UpInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_down(self) -> None:
-        self.down_active = QCompassButton(QCompass.CompassFlag.Down)
-        self.down_active.setAccessibleDescription("Down (Active)")
-        self.down_active.setContentsMargins(0, 0, 0, 0)
-        self.down_active.setPixmap(
-            Icons().DownActiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-        self.down_active.setVisible(False)
-        self.down_active.clicked.connect(self._on_compass_button_click)
-
-        self.down_inactive = QLabel()
-        self.down_inactive.setAccessibleDescription("Down (Inactive)")
-        self.down_inactive.setContentsMargins(0, 0, 0, 0)
-        self.down_inactive.setPixmap(
-            Icons().DownInactiveIcon.pixmap(
-                QSize(
-                    self._icon_size,
-                    self._icon_size,
-                ),
-            ),
-        )
-
-    def _setup_layout(self) -> None:
-        layout = QGridLayout()
-        layout.setSpacing(0)
-        layout.setRowStretch(0, 0)
-        layout.setRowStretch(1, 0)
-        layout.setRowStretch(2, 0)
-        layout.setColumnStretch(0, 0)
-        layout.setColumnStretch(1, 0)
-        layout.setColumnStretch(2, 0)
-        layout.setColumnStretch(3, 0)
-        layout.addWidget(self.north_active, 0, 1)
-        layout.addWidget(self.north_inactive, 0, 1)
-        layout.addWidget(self.northeast_active, 0, 2)
-        layout.addWidget(self.northeast_inactive, 0, 2)
-        layout.addWidget(self.east_active, 1, 2)
-        layout.addWidget(self.east_inactive, 1, 2)
-        layout.addWidget(self.southeast_active, 2, 2)
-        layout.addWidget(self.southeast_inactive, 2, 2)
-        layout.addWidget(self.south_active, 2, 1)
-        layout.addWidget(self.south_inactive, 2, 1)
-        layout.addWidget(self.southwest_active, 2, 0)
-        layout.addWidget(self.southwest_inactive, 2, 0)
-        layout.addWidget(self.west_active, 1, 0)
-        layout.addWidget(self.west_inactive, 1, 0)
-        layout.addWidget(self.northwest_active, 0, 0)
-        layout.addWidget(self.northwest_inactive, 0, 0)
-        layout.addWidget(self.out_active, 1, 1)
-        layout.addWidget(self.out_inactive, 1, 1)
-        layout.addWidget(self.up_active, 0, 3)
-        layout.addWidget(self.up_inactive, 0, 3)
-        layout.addWidget(self.down_active, 2, 3)
-        layout.addWidget(self.down_inactive, 2, 3)
-
-        self.setContentsMargins(0, 0, 0, 0)
-        self.setStyleSheet("padding: 0px; margin: 0px;")
-        self.setLayout(layout)
-
-    @property
-    def _window(self) -> "MainWindow":
-        return cast("MainWindow", self.window())
-
     _DIRECTION_COMMANDS: ClassVar[dict[CompassFlag, str]] = {
         CompassFlag.North: "north",
         CompassFlag.NorthEast: "northeast",
@@ -438,12 +74,21 @@ class QCompass(QWidget):
         CompassFlag.Down: "down",
     }
 
-    @traced(show_args=True)
-    def _on_compass_button_click(self, direction: CompassFlag) -> None:
-        for flag, cmd in QCompass._DIRECTION_COMMANDS.items():
-            if direction & flag:
-                self._window.command.parse(cmd)
-                return
+    def __init__(self) -> None:
+        super().__init__()
+
+        self._logger = logging.getLogger(self.__class__.__name__)
+
+        self._config = Config()
+        self._icon_size = self._config.get("presets", "compass.iconsize", 16)
+        self._variables = Variables()
+
+        self._setup_compass()
+        self._setup_layout()
+
+    @property
+    def _window(self) -> "MainWindow":
+        return cast("MainWindow", self.window())
 
     @traced(show_args=True)
     def update_compass(self, directions: CompassFlag) -> None:
@@ -524,6 +169,361 @@ class QCompass(QWidget):
             not (directions & QCompass.CompassFlag.Down),
         )
 
+    @traced(show_args=True)
+    def _on_compass_button_click(self, direction: CompassFlag) -> None:
+        for flag, cmd in QCompass._DIRECTION_COMMANDS.items():
+            if direction & flag:
+                self._window.command.parse(cmd)
+                return
+
+    @traced(show_args=False)
+    def _setup_compass(self) -> None:
+        self._setup_compass_north()
+        self._setup_compass_northeast()
+        self._setup_compass_east()
+        self._setup_compass_southeast()
+        self._setup_compass_south()
+        self._setup_compass_southwest()
+        self._setup_compass_west()
+        self._setup_compass_northwest()
+        self._setup_compass_out()
+        self._setup_compass_up()
+        self._setup_compass_down()
+
+    def _setup_compass_north(self) -> None:
+        self.north_active = QCompassButton(QCompass.CompassFlag.North)
+        self.north_active.setAccessibleDescription("North (Active)")
+        self.north_active.setContentsMargins(0, 0, 0, 0)
+        self.north_active.setPixmap(
+            Icons().NorthActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.north_active.setVisible(False)
+        self.north_active.clicked.connect(self._on_compass_button_click)
+
+        self.north_inactive = QLabel()
+        self.north_inactive.setAccessibleDescription("North (Inactive)")
+        self.north_inactive.setContentsMargins(0, 0, 0, 0)
+        self.north_inactive.setPixmap(
+            Icons().NorthInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_northeast(self) -> None:
+        self.northeast_active = QCompassButton(QCompass.CompassFlag.NorthEast)
+        self.northeast_active.setAccessibleDescription("Northeast (Active)")
+        self.northeast_active.setContentsMargins(0, 0, 0, 0)
+        self.northeast_active.setPixmap(
+            Icons().NorthEastActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.northeast_active.setVisible(False)
+        self.northeast_active.clicked.connect(self._on_compass_button_click)
+
+        self.northeast_inactive = QLabel()
+        self.northeast_inactive.setAccessibleDescription("Northeast (Inactive)")
+        self.northeast_inactive.setContentsMargins(0, 0, 0, 0)
+        self.northeast_inactive.setPixmap(
+            Icons().NorthEastInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_east(self) -> None:
+        self.east_active = QCompassButton(QCompass.CompassFlag.East)
+        self.east_active.setAccessibleDescription("East (Active)")
+        self.east_active.setContentsMargins(0, 0, 0, 0)
+        self.east_active.setPixmap(
+            Icons().EastActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.east_active.setVisible(False)
+        self.east_active.clicked.connect(self._on_compass_button_click)
+
+        self.east_inactive = QLabel()
+        self.east_inactive.setAccessibleDescription("East (Inactive)")
+        self.east_inactive.setContentsMargins(0, 0, 0, 0)
+        self.east_inactive.setPixmap(
+            Icons().EastInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_southeast(self) -> None:
+        self.southeast_active = QCompassButton(QCompass.CompassFlag.SouthEast)
+        self.southeast_active.setAccessibleDescription("Southeast (Active)")
+        self.southeast_active.setContentsMargins(0, 0, 0, 0)
+        self.southeast_active.setPixmap(
+            Icons().SouthEastActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.southeast_active.setVisible(False)
+        self.southeast_active.clicked.connect(self._on_compass_button_click)
+
+        self.southeast_inactive = QLabel()
+        self.southeast_inactive.setAccessibleDescription("Southeast (Inactive)")
+        self.southeast_inactive.setContentsMargins(0, 0, 0, 0)
+        self.southeast_inactive.setPixmap(
+            Icons().SouthEastInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_south(self) -> None:
+        self.south_active = QCompassButton(QCompass.CompassFlag.South)
+        self.south_active.setAccessibleDescription("South (Active)")
+        self.south_active.setContentsMargins(0, 0, 0, 0)
+        self.south_active.setPixmap(
+            Icons().SouthActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.south_active.setVisible(False)
+        self.south_active.clicked.connect(self._on_compass_button_click)
+
+        self.south_inactive = QLabel()
+        self.south_inactive.setAccessibleDescription("South (Inactive)")
+        self.south_inactive.setContentsMargins(0, 0, 0, 0)
+        self.south_inactive.setPixmap(
+            Icons().SouthInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_southwest(self) -> None:
+        self.southwest_active = QCompassButton(QCompass.CompassFlag.SouthWest)
+        self.southwest_active.setAccessibleDescription("Southwest (Active)")
+        self.southwest_active.setContentsMargins(0, 0, 0, 0)
+        self.southwest_active.setPixmap(
+            Icons().SouthWestActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.southwest_active.setVisible(False)
+        self.southwest_active.clicked.connect(self._on_compass_button_click)
+
+        self.southwest_inactive = QLabel()
+        self.southwest_inactive.setAccessibleDescription("Southwest (Inactive)")
+        self.southwest_inactive.setContentsMargins(0, 0, 0, 0)
+        self.southwest_inactive.setPixmap(
+            Icons().SouthWestInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_west(self) -> None:
+        self.west_active = QCompassButton(QCompass.CompassFlag.West)
+        self.west_active.setAccessibleDescription("West (Active)")
+        self.west_active.setContentsMargins(0, 0, 0, 0)
+        self.west_active.setPixmap(
+            Icons().WestActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.west_active.setVisible(False)
+        self.west_active.clicked.connect(self._on_compass_button_click)
+
+        self.west_inactive = QLabel()
+        self.west_inactive.setAccessibleDescription("West (Inactive)")
+        self.west_inactive.setContentsMargins(0, 0, 0, 0)
+        self.west_inactive.setPixmap(
+            Icons().WestInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_northwest(self) -> None:
+        self.northwest_active = QCompassButton(QCompass.CompassFlag.NorthWest)
+        self.northwest_active.setAccessibleDescription("Northwest (Active)")
+        self.northwest_active.setContentsMargins(0, 0, 0, 0)
+        self.northwest_active.setPixmap(
+            Icons().NorthWestActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.northwest_active.setVisible(False)
+        self.northwest_active.clicked.connect(self._on_compass_button_click)
+
+        self.northwest_inactive = QLabel()
+        self.northwest_inactive.setAccessibleDescription("Northwest (Inactive)")
+        self.northwest_inactive.setContentsMargins(0, 0, 0, 0)
+        self.northwest_inactive.setPixmap(
+            Icons().NorthWestInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_out(self) -> None:
+        self.out_active = QCompassButton(QCompass.CompassFlag.Out)
+        self.out_active.setAccessibleDescription("Out (Active)")
+        self.out_active.setContentsMargins(0, 0, 0, 0)
+        self.out_active.setPixmap(
+            Icons().OutActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.out_active.setVisible(False)
+        self.out_active.clicked.connect(self._on_compass_button_click)
+
+        self.out_inactive = QLabel()
+        self.out_inactive.setAccessibleDescription("Out (Inactive)")
+        self.out_inactive.setContentsMargins(0, 0, 0, 0)
+        self.out_inactive.setPixmap(
+            Icons().OutInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_up(self) -> None:
+        self.up_active = QCompassButton(QCompass.CompassFlag.Up)
+        self.up_active.setAccessibleDescription("Up (Active)")
+        self.up_active.setContentsMargins(0, 0, 0, 0)
+        self.up_active.setPixmap(
+            Icons().UpActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.up_active.setVisible(False)
+        self.up_active.clicked.connect(self._on_compass_button_click)
+
+        self.up_inactive = QLabel()
+        self.up_inactive.setAccessibleDescription("Up (Inactive)")
+        self.up_inactive.setContentsMargins(0, 0, 0, 0)
+        self.up_inactive.setPixmap(
+            Icons().UpInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_compass_down(self) -> None:
+        self.down_active = QCompassButton(QCompass.CompassFlag.Down)
+        self.down_active.setAccessibleDescription("Down (Active)")
+        self.down_active.setContentsMargins(0, 0, 0, 0)
+        self.down_active.setPixmap(
+            Icons().DownActiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+        self.down_active.setVisible(False)
+        self.down_active.clicked.connect(self._on_compass_button_click)
+
+        self.down_inactive = QLabel()
+        self.down_inactive.setAccessibleDescription("Down (Inactive)")
+        self.down_inactive.setContentsMargins(0, 0, 0, 0)
+        self.down_inactive.setPixmap(
+            Icons().DownInactiveIcon.pixmap(
+                QSize(
+                    self._icon_size,
+                    self._icon_size,
+                ),
+            ),
+        )
+
+    def _setup_layout(self) -> None:
+        layout = QGridLayout()
+        layout.setSpacing(0)
+        layout.setRowStretch(0, 0)
+        layout.setRowStretch(1, 0)
+        layout.setRowStretch(2, 0)
+        layout.setColumnStretch(0, 0)
+        layout.setColumnStretch(1, 0)
+        layout.setColumnStretch(2, 0)
+        layout.setColumnStretch(3, 0)
+        layout.addWidget(self.north_active, 0, 1)
+        layout.addWidget(self.north_inactive, 0, 1)
+        layout.addWidget(self.northeast_active, 0, 2)
+        layout.addWidget(self.northeast_inactive, 0, 2)
+        layout.addWidget(self.east_active, 1, 2)
+        layout.addWidget(self.east_inactive, 1, 2)
+        layout.addWidget(self.southeast_active, 2, 2)
+        layout.addWidget(self.southeast_inactive, 2, 2)
+        layout.addWidget(self.south_active, 2, 1)
+        layout.addWidget(self.south_inactive, 2, 1)
+        layout.addWidget(self.southwest_active, 2, 0)
+        layout.addWidget(self.southwest_inactive, 2, 0)
+        layout.addWidget(self.west_active, 1, 0)
+        layout.addWidget(self.west_inactive, 1, 0)
+        layout.addWidget(self.northwest_active, 0, 0)
+        layout.addWidget(self.northwest_inactive, 0, 0)
+        layout.addWidget(self.out_active, 1, 1)
+        layout.addWidget(self.out_inactive, 1, 1)
+        layout.addWidget(self.up_active, 0, 3)
+        layout.addWidget(self.up_inactive, 0, 3)
+        layout.addWidget(self.down_active, 2, 3)
+        layout.addWidget(self.down_inactive, 2, 3)
+
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setStyleSheet("padding: 0px; margin: 0px;")
+        self.setLayout(layout)
+
 
 class QCompassButton(QLabel):
     clicked = pyqtSignal(int)
@@ -563,15 +563,6 @@ class QCustomTextEdit(QTextEdit):
     @property
     def _window(self) -> "MainWindow":
         return cast("MainWindow", self.window())
-
-    @traced(show_args=False)
-    def _clear(self) -> None:
-        self.clear()
-
-    @traced(show_args=True)
-    def _timestamp(self, checked: bool) -> None:
-        self._config.set_nested("windows", self._id, "timestamp", checked)
-        self._config.save()
 
     def contextMenuEvent(self, e: QContextMenuEvent | None) -> None:  # noqa: N802
         context_menu = self.createStandardContextMenu()
@@ -661,6 +652,15 @@ class QCustomTextEdit(QTextEdit):
             }}
             """,
         )
+
+    @traced(show_args=False)
+    def _clear(self) -> None:
+        self.clear()
+
+    @traced(show_args=True)
+    def _timestamp(self, checked: bool) -> None:
+        self._config.set_nested("windows", self._id, "timestamp", checked)
+        self._config.save()
 
 
 class QCustomTimer(QObject):
@@ -915,6 +915,7 @@ class QMiniVital(QProgressBar):
         super().__init__()
 
         self._config = Config()
+
         self.id = vital_id
 
         color = self._config.get("presets", f"minivitals.{vital_id}.color", "white")
@@ -995,18 +996,6 @@ class QTimerBar(QProgressBar):
         else:
             self._logger.error("QTimerBar unknown type: %s", bar_type)
 
-    @traced(show_args=True)
-    def start(self, seconds: int) -> None:
-        if not seconds:
-            self._current_seconds = 0
-            self._total_seconds = 0
-            self.setValue(0)
-            return
-
-        self._total_seconds = seconds
-        self._current_seconds = 1
-        self.setValue(100)
-
     def do_update(self) -> None:
         if not self._total_seconds:
             return
@@ -1032,6 +1021,18 @@ class QTimerBar(QProgressBar):
             percentage = int((seconds_left / self._total_seconds) * 100)
             self.setValue(percentage)
             self._current_seconds += 1
+
+    @traced(show_args=True)
+    def start(self, seconds: int) -> None:
+        if not seconds:
+            self._current_seconds = 0
+            self._total_seconds = 0
+            self.setValue(0)
+            return
+
+        self._total_seconds = seconds
+        self._current_seconds = 1
+        self.setValue(100)
 
 
 class QScriptButton(QToolButton):
@@ -1066,17 +1067,17 @@ class QScriptButton(QToolButton):
         self.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.clicked.connect(self.click_action)
 
+    def abort_action(self) -> None:
+        self._logger.debug("abort_action: script(%s)", self._script)
+
     def click_action(self) -> None:
         self._logger.debug("click_action: script(%s)", self._script)
-
-    def resume_action(self) -> None:
-        self._logger.debug("resume_action: script(%s)", self._script)
 
     def pause_action(self) -> None:
         self._logger.debug("pause_action: script(%s)", self._script)
 
-    def abort_action(self) -> None:
-        self._logger.debug("abort_action: script(%s)", self._script)
+    def resume_action(self) -> None:
+        self._logger.debug("resume_action: script(%s)", self._script)
 
 
 class QHistoryLineEdit(QLineEdit):
