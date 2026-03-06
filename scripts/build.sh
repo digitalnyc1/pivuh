@@ -1,3 +1,7 @@
 #!/bin/sh
 
-pyinstaller main.pyw --clean --onefile --name "Pivuh" --icon=image/pivuh.ico --add-data "images/*:images"
+if [[ "$(uname)" == "Darwin" ]]; then
+  pyinstaller main.py --clean --onefile --name "Pivuh" --add-data "images/*:images" --icon=images/pivuh.icns --windowed
+else
+  pyinstaller main.py --clean --onefile --name "Pivuh" --add-data "images/*:images"
+fi

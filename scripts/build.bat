@@ -1,1 +1,1 @@
-pyinstaller main.pyw --clean --onefile --name "Pivuh" --icon=images\pivuh.ico --add-data "images\*:images"
+pyinstaller main.py --clean --onefile --name "Pivuh" --add-data "images\*:images" --icon=images\pivuh.ico
