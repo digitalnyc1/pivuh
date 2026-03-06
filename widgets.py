@@ -67,7 +67,6 @@ class QCompass(QWidget):
 
         self._config = Config()
         self._variables = Variables()
-        self._window: "MainWindow" = cast("MainWindow", self.window())
 
         icon_size = self._config.get("presets", "compass.iconsize", 16)
 
@@ -393,6 +392,10 @@ class QCompass(QWidget):
         self.setStyleSheet("padding: 0px; margin: 0px;")
         self.setLayout(layout)
 
+    @property
+    def _window(self) -> "MainWindow":
+        return cast("MainWindow", self.window())
+
     _DIRECTION_COMMANDS: ClassVar[dict[CompassFlag, str]] = {
         CompassFlag.North: "north",
         CompassFlag.NorthEast: "northeast",
@@ -520,10 +523,8 @@ class QCustomTextEdit(QTextEdit):
         self._logger = logging.getLogger(self.__class__.__name__)
 
         self._config = Config()
-        self._variables = Variables()
-        self._window: "MainWindow" = cast("MainWindow", self.window())
-
         self._id = widget_id
+        self._variables = Variables()
 
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setReadOnly(True)
@@ -531,14 +532,18 @@ class QCustomTextEdit(QTextEdit):
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.update_style()
 
+    @property
+    def _window(self) -> "MainWindow":
+        return cast("MainWindow", self.window())
+
     @traced(show_args=False)
     def _clear(self) -> None:
         self.clear()
 
     @traced(show_args=True)
-    def _timestamp(self, checked: bool) -> bool:
-        # TODO: Toggle the timestamp setting for the window.
-        return checked
+    def _timestamp(self, checked: bool) -> None:
+        self._config.set_nested("windows", self._id, "timestamp", checked)
+        self._config.save()
 
     def contextMenuEvent(self, e: QContextMenuEvent | None) -> None:  # noqa: N802
         context_menu = self.createStandardContextMenu()
@@ -633,8 +638,9 @@ class QCustomTextEdit(QTextEdit):
 class QCustomTimer(QObject):
     def __init__(self, interval: int = 1000) -> None:
         super().__init__()
-        self.interval = interval
+
         self._callbacks = []
+        self.interval = interval
         self.timer = QTimer()
         self.timer.timeout.connect(self.tick)
 
@@ -655,6 +661,7 @@ class QCustomTimer(QObject):
 class QCustomToolBar(QToolBar):
     def __init__(self) -> None:
         super().__init__()
+
         self.setMovable(False)
         self.setObjectName("QCustomToolBar")
         self.setStyleSheet("QCustomToolBar { border: none; }")
@@ -698,7 +705,6 @@ class QIndicators(QWidget):
 
         self._config = Config()
         self._variables = Variables()
-        self._window = self.window()
 
         icon_size = self._config.get("presets", "indicator.iconsize", 28)
 
@@ -881,8 +887,8 @@ class QMiniVital(QProgressBar):
         super().__init__()
 
         self._config = Config()
-
         self.id = vital_id
+
         color = self._config.get("presets", f"minivitals.{vital_id}.color", "white")
         bgcolor = self._config.get("presets", f"minivitals.{vital_id}.bgcolor", "black")
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -915,14 +921,13 @@ class QTimerBar(QProgressBar):
     def __init__(self, bar_type: TimerBarType) -> None:
         super().__init__()
 
-        self._config = Config()
-        self._variables = Variables()
-
         self._logger = logging.getLogger(self.__class__.__name__)
 
-        self._type = bar_type
+        self._config = Config()
         self._current_seconds = 0
         self._total_seconds = 0
+        self._type = bar_type
+        self._variables = Variables()
 
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFormat("")
@@ -1057,7 +1062,10 @@ class QHistoryLineEdit(QLineEdit):
         self._history: list[str] = []
         self._history_pos: int = 0
         self._variables = Variables()
-        self._window: "MainWindow" = cast("MainWindow", self.window())
+
+    @property
+    def _window(self) -> "MainWindow":
+        return cast("MainWindow", self.window())
 
     def add_to_history(self, text: str) -> None:
         """Add a command to history and reset navigation position."""

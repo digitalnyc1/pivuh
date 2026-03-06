@@ -248,3 +248,10 @@ class Config:
         if section not in CONFIG:
             CONFIG[section] = {}
         CONFIG[section][key] = value
+
+    def set_nested(self, section: str, key: str, nested_key: str, value: Any) -> None:  # noqa: ANN401
+        if section not in CONFIG:
+            CONFIG[section] = {}
+        if key not in CONFIG[section] or not isinstance(CONFIG[section][key], dict):
+            CONFIG[section][key] = {}
+        CONFIG[section][key][nested_key] = value
