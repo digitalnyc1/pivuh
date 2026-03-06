@@ -3,12 +3,12 @@ import json
 import logging
 from pathlib import Path
 
-LAYOUT_FILE = "config/layout.json"
-
 
 class LayoutConfig:
-    def __init__(self) -> None:
+    def __init__(self, file: str = "config/layout.json") -> None:
         self._logger = logging.getLogger(self.__class__.__name__)
+
+        self._file = file
 
     def load(self) -> tuple[bytes, bytes]:
         """Load geometry and state from config/layout.json.
@@ -17,7 +17,7 @@ class LayoutConfig:
             A (geometry, state) tuple of bytes.  Either value is b"" when not
             present or if the file does not exist yet.
         """
-        path = Path(LAYOUT_FILE)
+        path = Path(self._file)
         if not path.exists():
             self._logger.debug("load: layout file not found, returning empty values")
             return b"", b""
@@ -38,7 +38,7 @@ class LayoutConfig:
 
     def save(self, geometry: bytes, state: bytes) -> None:
         """Save geometry and state to config/layout.json."""
-        path = Path(LAYOUT_FILE)
+        path = Path(self._file)
         path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
