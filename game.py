@@ -493,6 +493,13 @@ class GameParser(QObject):
 
         update_room = False
 
+        # Remove ANSI control characters and escape sequences, but leave newlines
+        self._buffer = re.sub(
+            r"(?:\x07|\x08|\x0D|\x1b\[[0-9;]*m)",
+            "",
+            self._buffer,
+        )
+
         groups = re.search(
             r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>\n?""",
             self._buffer,
@@ -508,22 +515,16 @@ class GameParser(QObject):
 
         gametime = int(groups.group(1))
         prompt = groups.group(2)
-        self._logger.debug("Prompt received: gametime(%d) prompt(%s)", gametime, prompt)
+        self._logger.debug("prompt received: gametime(%d) prompt(%s)", gametime, prompt)
 
-        # Remove ANSI control characters and escape sequences, but leave newlines
-        self._buffer = re.sub(
-            r"(?:\x07|\x08|\x0D|\x1b\[[0-9;]*m)",
-            "",
-            self._buffer.rstrip(),
-        )
+        self._variables.set("temporary", "gametime", gametime)
+        self._variables.set("temporary", "prompt", prompt)
 
         # Process the buffer
         # Note: Order of tag processing is important in certain cases
         self._logger.debug("parse before: %r", self._buffer)
 
         # <prompt></prompt>
-        self._variables.set("temporary", "gametime", gametime)
-        self._variables.set("temporary", "prompt", prompt)
         self._buffer = re.sub(
             r"""<prompt time=['"](\d+)['"]>(.*?)</prompt>\n?""",
             "",

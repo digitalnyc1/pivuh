@@ -1,8 +1,11 @@
 import html
 import logging
 import re
+import subprocess
 from typing import TYPE_CHECKING
 
+import psutil
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QDockWidget
 
 from config import Config
@@ -38,29 +41,89 @@ class CommandParser:
 
         if command.startswith("#"):
             if command == "#connect":
-                usage = f"<br/>Usage:<br/>{tab}<code>{command} [account] [password] [character] [instance]</code>"
+                usage = f"<br/>Usage:<br/>{tab}<code>{command} [account] [password] [character] [instance] (lich)</code>"
                 if self._window.game_client.state == GameState.Connected:
                     self._logger.debug("#connect: already connected")
                     return
 
                 args_list = args.split(" ")
-                if len(args_list) != 4:  # noqa: PLR2004
+                args_count = len(args_list)
+
+                lich_mode = False
+
+                if args_count == 5:  # noqa: PLR2004
+                    account, password, character, instance, lich = args_list
+                    if lich == "lich":
+                        lich_mode = True
+                elif args_count == 4:  # noqa: PLR2004
+                    account, password, character, instance = args_list
+                else:
                     self._window.main.insertHtml(usage)
                     return
 
                 self._variables.set("protected", "login_key", "")
 
-                account, password, character, instance = args_list
                 self._variables.set("temporary", "account", account)
                 self._variables.set("protected", "password", password)
                 self._variables.set("temporary", "character", character)
                 self._variables.set("temporary", "instance", instance)
 
+                self._variables.set("temporary", "guild", "Commoner")
+
                 self._window.eaccess_client.connect()
                 self._window.eaccess_client.authenticate()
                 self._window.eaccess_client.wait_for_login_key(3000)
 
-                self._variables.set("temporary", "guild", "Commoner")
+                if lich_mode:
+                    self._variables.set("temporary", "game_host", "127.0.0.1")
+
+                    ruby_path = self._config.get("game", "lich.ruby_path")
+                    lich_path = self._config.get("game", "lich.lich_path")
+                    lich_args = self._config.get("game", "lich.lich_args", "").split(
+                        " "
+                    )
+                    if instance == "DRF":
+                        lich_args.append("--fallen")
+                    elif instance == "DRT":
+                        lich_args.append("--test")
+                    elif instance == "DRX":
+                        lich_args.append("--platinum")
+                    self._logger.debug(
+                        "lich connect: ruby_path(%s) lich_path(%s) lich_args(%s)",
+                        ruby_path,
+                        lich_path,
+                        lich_args,
+                    )
+
+                    lich_running = False
+                    for proc in psutil.process_iter(["pid", "cmdline"]):
+                        try:
+                            cmdline = proc.info["cmdline"] or []
+                            if len(cmdline) > 0 and ruby_path in cmdline:
+                                pid = proc.info["pid"] or 0
+                                self._logger.debug(
+                                    "lich_connect: found running lich instance with pid %d",
+                                    pid,
+                                )
+                                lich_running = True
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):  # noqa: PERF203
+                            pass
+
+                    if not lich_running:
+                        lich_process = subprocess.Popen(  # noqa: S603
+                            [ruby_path, lich_path, *lich_args]
+                        )
+                        self._logger.debug(
+                            "launched lich process with pid %d", lich_process.pid
+                        )
+
+                    def _connect_after_delay() -> None:
+                        self._window.game_client.connect()
+                        self._window.game_client.authenticate()
+
+                    lich_delay = self._config.get("game", "lich.lich_delay", 5000)
+                    QTimer.singleShot(lich_delay, _connect_after_delay)
+                    return
 
                 self._window.game_client.connect()
                 self._window.game_client.authenticate()

@@ -12,7 +12,7 @@ Q: Does Pivuh have bugs?<br/>
 A: Almost certainly!  If you come across any, please create an issue on GitHub.  Reminder: Never include any sensitive info in a GitHub issue.
 
 Q: Does Pivuh support scripting?<br/>
-A: Not yet!  Lich integration is planned, which should help cover most scripting needs for now.
+A: Not directly!  There is Lich integration, which should help cover most scripting needs for now.
 
 Q: I get the following error on Ubuntu: ```qt.qpa.plugin: From 6.5.0, xcb-cursor0 or libxcb-cursor0 is needed to load the Qt xcb platform plugin.```<br/>
 A: Install the libxcb-cursor0 package: ```sudo apt install libxcb-cursor0```

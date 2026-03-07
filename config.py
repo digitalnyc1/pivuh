@@ -18,6 +18,10 @@ DEFAULTS: dict = {
     "game": {
         "eaccess.host": "eaccess.play.net",
         "eaccess.port": 7910,
+        "lich.lich_args": "--stormfront --dragonrealms",
+        "lich.lich_delay": 5000,
+        "lich.lich_path": "c:\\ruby4lich5\\lich5\\lich.rbw",
+        "lich.ruby_path": "C:\\ruby4lich5\\4.0.0\\bin\\ruby.exe",
         "portrait.timeout": 15,
         "portrait.url": "https://www.play.net/bfe/DR-art/",
     },
