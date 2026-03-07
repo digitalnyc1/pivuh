@@ -461,6 +461,67 @@ class MainWindow(QMainWindow):
         self.setFont(font)
 
     @traced(show_args=True)
+    def _apply_gags(self, message: str) -> str:
+        """Remove <br/>-delimited lines matching any gag rule from message."""
+        gags = self._config.get("gags", "rules", [])
+
+        if not gags:
+            return message
+
+        compiled_patterns: list[re.Pattern] = []
+        for g in gags:
+            pattern = g.get("pattern", "")
+            if not pattern:
+                continue
+            try:
+                compiled_patterns.append(re.compile(pattern, re.IGNORECASE))
+            except re.error:
+                continue
+
+        if not compiled_patterns:
+            return message
+
+        def apply_gags_to_seg(html_seg: str) -> str:
+            """Remove matched spans from a single <br/>-delimited segment."""
+            # Split into html-tag tokens and plain-text tokens so we only
+            # strip the matched text, leaving surrounding text and tags intact.
+            tokens = re.split(r"(<[^>]+>)", html_seg)
+            for p in compiled_patterns:
+                new_tokens: list[str] = []
+                for t in tokens:
+                    if t.startswith("<"):
+                        new_tokens.append(t)
+                    else:
+                        new_tokens.append(p.sub("", t))
+                tokens = new_tokens
+            return "".join(tokens)
+
+        # Split on <br/> keeping delimiters
+        parts = re.split(r"(<br/>)", message)
+
+        result: list[str] = []
+        i = 0
+
+        # Initial text before the first <br/>
+        if parts and parts[0] != "<br/>":
+            result.append(apply_gags_to_seg(parts[0]))
+            i = 1
+
+        # Process <br/> + following-text pairs together
+        while i < len(parts):
+            br = parts[i]
+            text = parts[i + 1] if i + 1 < len(parts) else ""
+            if br == "<br/>":
+                result.append(br)
+                result.append(apply_gags_to_seg(text))
+                i += 2
+            else:
+                result.append(br)
+                i += 1
+
+        return "".join(result).replace("<br/><br/>", "<br/>")
+
+    @traced(show_args=True)
     def _apply_highlights(self, message: str) -> str:
         """Apply regex-based highlight rules to a message's text content."""
         highlights = self._config.get("highlights", "rules", [])
@@ -640,7 +701,10 @@ class MainWindow(QMainWindow):
                     if not message.endswith(prompt):
                         message = f"{message}{prompt}"
 
-                # Apply highlights, gags, etc.
+                # Apply gags, highlights, etc.
+                message = self._apply_gags(message)
+                if not message:
+                    return
                 message = self._apply_highlights(message)
 
                 widget.insertHtml(message, ignore_visibility=True)

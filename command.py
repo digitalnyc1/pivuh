@@ -197,6 +197,102 @@ class CommandParser:
                 else:
                     self._window.main.insertHtml(usage)
 
+            elif command in ("#gag", "#gags"):
+                usage = (
+                    f"<br/>Usage:"
+                    f"<br/>{tab}<code>{command} list</code>"
+                    f"<br/>{tab}<code>{command} add {{[pattern]}}</code>"
+                    f"<br/>{tab}<code>{command} remove [index]</code>"
+                    f"<br/>{tab}<code>{command} clear</code>"
+                )
+                args_list = args.split(" ", 1) if args else []
+                if not args_list or not args_list[0]:
+                    self._window.main.insertHtml(usage)
+                    return
+                subcommand = args_list[0]
+                gags = list(self._config.get("gags", "rules", []))
+
+                if subcommand.startswith("l"):
+                    if not gags:
+                        self._window.main.insertHtml("<br/>No gags configured.")
+                    else:
+                        lines = ["<br/>Gags:"]
+                        for i, g in enumerate(gags, 1):
+                            pattern = html.escape(g.get("pattern", ""))
+                            lines.append(
+                                f"<br/>{tab}{i}. pattern=<code>{pattern}</code>",
+                            )
+                        self._window.main.insertHtml("".join(lines))
+
+                elif subcommand.startswith("a"):
+                    add_usage = (
+                        f"<br/>Usage:"
+                        f"<br/>{tab}<code>{command} add {{[pattern]}}</code>"
+                        f"<br/>Examples:"
+                        f"<br/>{tab}<code>{command} add {{you see a .*? goblin}}</code>"
+                    )
+                    add_args = args_list[1].strip() if len(args_list) > 1 else ""
+                    m = re.fullmatch(r"\{([^}]+)\}", add_args)
+                    if not m:
+                        self._window.main.insertHtml(add_usage)
+                        return
+
+                    pattern = m.group(1)
+                    try:
+                        re.compile(pattern)
+                    except re.error as e:
+                        self._window.main.insertHtml(
+                            f"<br/>Invalid regex pattern: {html.escape(str(e))}",
+                        )
+                        return
+
+                    if any(g.get("pattern") == pattern for g in gags):
+                        self._window.main.insertHtml(
+                            f"<br/>Gag with pattern <code>{html.escape(pattern)}</code> already exists.",
+                        )
+                        return
+
+                    gags.append({"pattern": pattern})
+                    self._config.set("gags", "rules", gags)
+                    self._window.main.insertHtml(
+                        f"<br/>Gag #{len(gags)} added:<br/>{tab}"
+                        f"pattern=<code>{html.escape(pattern)}</code> ",
+                    )
+
+                elif subcommand.startswith("r"):
+                    remove_usage = (
+                        f"<br/>Usage:<br/>{tab}<code>{command} remove [index]</code>"
+                    )
+                    remove_args = args_list[1].strip() if len(args_list) > 1 else ""
+                    if not remove_args:
+                        self._window.main.insertHtml(remove_usage)
+                        return
+                    try:
+                        i = int(remove_args) - 1
+                    except ValueError:
+                        self._window.main.insertHtml(
+                            f"<br/>Invalid index: {html.escape(remove_args)}",
+                        )
+                        return
+                    if i < 0 or i >= len(gags):
+                        self._window.main.insertHtml(
+                            f"<br/>No gag at index {i + 1}.",
+                        )
+                        return
+                    removed = gags.pop(i)
+                    self._config.set("gags", "rules", gags)
+                    self._window.main.insertHtml(
+                        f"<br/>Gag #{i + 1} removed:<br/>{tab}"
+                        f"pattern=<code>{html.escape(removed.get('pattern', ''))}</code>",
+                    )
+
+                elif subcommand.startswith("c"):
+                    self._config.set("gags", "rules", [])
+                    self._window.main.insertHtml("<br/>Gags cleared.")
+
+                else:
+                    self._window.main.insertHtml(usage)
+
             elif command == "#layout":
                 usage = f"<br/>Usage:<br/>{tab}<code>{command} [load|save]</code>"
                 args_list = args.split(" ")
