@@ -566,6 +566,61 @@ class MainWindow(QMainWindow):
         return message
 
     @traced(show_args=True)
+    def _apply_subs(self, message: str) -> str:
+        """Replace text matching any substitution rule's pattern with its replacement."""
+        subs = self._config.get("subs", "rules", [])
+
+        if not subs:
+            return message
+
+        compiled: list[tuple[re.Pattern, str]] = []
+        for s in subs:
+            pattern = s.get("pattern", "")
+            replacement = s.get("replacement", "")
+            if not pattern:
+                continue
+            try:
+                compiled.append((re.compile(pattern, re.IGNORECASE), replacement))
+            except re.error:
+                continue
+
+        if not compiled:
+            return message
+
+        def apply_subs_to_seg(html_seg: str) -> str:
+            tokens = re.split(r"(<[^>]+>)", html_seg)
+            for p, repl in compiled:
+                new_tokens: list[str] = []
+                for t in tokens:
+                    if t.startswith("<"):
+                        new_tokens.append(t)
+                    else:
+                        new_tokens.append(p.sub(repl, t))
+                tokens = new_tokens
+            return "".join(tokens)
+
+        parts = re.split(r"(<br/>)", message)
+        result: list[str] = []
+        i = 0
+
+        if parts and parts[0] != "<br/>":
+            result.append(apply_subs_to_seg(parts[0]))
+            i = 1
+
+        while i < len(parts):
+            br = parts[i]
+            text = parts[i + 1] if i + 1 < len(parts) else ""
+            if br == "<br/>":
+                result.append(br)
+                result.append(apply_subs_to_seg(text))
+                i += 2
+            else:
+                result.append(br)
+                i += 1
+
+        return "".join(result)
+
+    @traced(show_args=True)
     def _on_clear_window(self, window: str) -> None:
         if window not in self.windows:
             return
@@ -701,10 +756,11 @@ class MainWindow(QMainWindow):
                     if not message.endswith(prompt):
                         message = f"{message}{prompt}"
 
-                # Apply gags, highlights, etc.
+                # Apply gags, subs, highlights
                 message = self._apply_gags(message)
                 if not message:
                     return
+                message = self._apply_subs(message)
                 message = self._apply_highlights(message)
 
                 widget.insertHtml(message, ignore_visibility=True)
