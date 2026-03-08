@@ -4,6 +4,8 @@ import html
 import logging
 import re
 import sys
+import traceback
+import types
 from datetime import UTC, datetime
 
 from PyQt6.QtCore import (
@@ -25,6 +27,7 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QSplashScreen,
     QVBoxLayout,
     QWidget,
@@ -795,6 +798,31 @@ def _show_splash_screen() -> QSplashScreen:
     return splash
 
 
+def _exception_hook(
+    exc_type: type, exc_value: BaseException, exc_traceback: types.TracebackType | None
+) -> None:
+    """Show a dialog for unhandled exceptions instead of crashing."""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    tb_str = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    logging.getLogger(__name__).error("Unhandled exception:\n%s", tb_str)
+
+    dialog = QMessageBox()
+    dialog.setIcon(QMessageBox.Icon.Critical)
+    dialog.setWindowTitle("Unhandled Exception")
+    dialog.setText(f"An unexpected error occurred:\n\n{exc_value}")
+    dialog.setDetailedText(tb_str)
+    dialog.setStandardButtons(
+        QMessageBox.StandardButton.Close | QMessageBox.StandardButton.Ignore
+    )
+    dialog.setDefaultButton(QMessageBox.StandardButton.Ignore)
+    result = dialog.exec()
+    if result == QMessageBox.StandardButton.Close:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     # Set up logging
     config = Config()
@@ -817,6 +845,9 @@ if __name__ == "__main__":
     # Set up application main window
     w = MainWindow()
     w.show()
+
+    # Show a dialog instead of crashing on unhandled exceptions
+    sys.excepthook = _exception_hook
 
     # Let's go!
     app.setWindowIcon(Icons().AppIcon)
