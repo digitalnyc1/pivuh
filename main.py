@@ -5,7 +5,6 @@ import logging
 import re
 import sys
 from datetime import UTC, datetime
-from logging import LogRecord
 
 from PyQt6.QtCore import (
     QEvent,
@@ -107,10 +106,6 @@ class MainWindow(QMainWindow):
         self.main = QCustomTextEdit("main")
         self.main.setAccessibleDescription("Story Window")
         self.main.setObjectName("Story")
-
-        self.debug = QCustomTextEdit("debug")
-        self.debug.setAccessibleDescription("Debug Window")
-        self.debug.setObjectName("Debug")
 
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(3, 1, 3, 3)
@@ -281,8 +276,6 @@ class MainWindow(QMainWindow):
                 self.windows[window_id] = settings
                 if window_id == "main":
                     self._variables.set("widgets", window_id, self.main)
-                elif window_id == "debug":
-                    self._variables.set("widgets", window_id, self.debug)
                 else:
                     self._variables.set(
                         "widgets",
@@ -792,22 +785,6 @@ class MainWindow(QMainWindow):
             widget.setFont(widget_font)
 
 
-class DebugWindowHandler(logging.Handler):
-    def __init__(self, window: QWidget) -> None:
-        super().__init__()
-        self._variables = Variables()
-        self._window = window
-
-    def emit(self, record: LogRecord) -> None:
-        try:
-            msg = html.escape(self.format(record))
-            widget = self._variables.get("widgets", "debug", None)
-            if widget:
-                widget.insertHtml(f"{msg}<br/>")
-        except Exception:
-            self.handleError(record)
-
-
 def _show_splash_screen() -> QSplashScreen:
     splash_pixmap = QPixmap(str(ICONS_DIR / "pivuh.png"))
 
@@ -820,12 +797,14 @@ def _show_splash_screen() -> QSplashScreen:
 
 if __name__ == "__main__":
     # Set up logging
+    config = Config()
+    log_level = config.get("client", "logging.log_level")
     formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s: %(message)s")
     handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(log_level)
     handler.setFormatter(formatter)
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(log_level)
     logger.addHandler(handler)
 
     # Set up PyQt application
@@ -838,12 +817,6 @@ if __name__ == "__main__":
     # Set up application main window
     w = MainWindow()
     w.show()
-
-    # Set up debug window logging
-    handler = DebugWindowHandler(w)
-    handler.setLevel(logging.INFO)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
     # Let's go!
     app.setWindowIcon(Icons().AppIcon)

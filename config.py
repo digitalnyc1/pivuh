@@ -14,6 +14,7 @@ DEFAULTS: dict = {
         "client.name": "Pivuh",
         "client.version": "0.0.1",
         "input.history_length": 100,
+        "logging.log_level": "INFO",
     },
     "game": {
         "eaccess.host": "eaccess.play.net",
@@ -101,11 +102,6 @@ DEFAULTS: dict = {
             "if_closed": "main",
             "timestamp": True,
             "title": "Deaths",
-        },
-        "debug": {
-            "if_closed": None,
-            "timestamp": True,
-            "title": "Debug",
         },
         "experience": {
             "default_open": True,
