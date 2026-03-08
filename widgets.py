@@ -592,9 +592,17 @@ class QCustomTextEdit(QTextEdit):
         if not ignore_visibility and not self.isVisible():
             return
 
-        self.moveCursor(QTextCursor.MoveOperation.End)
-        super().insertHtml(text)
-        self.moveCursor(QTextCursor.MoveOperation.End)
+        scrollbar = self.verticalScrollBar()
+        at_bottom = True
+        if scrollbar:
+            at_bottom = scrollbar.value() == scrollbar.maximum()
+
+        cursor = QTextCursor(self.document())
+        cursor.movePosition(QTextCursor.MoveOperation.End)
+        cursor.insertHtml(text)
+
+        if at_bottom and scrollbar:
+            scrollbar.setValue(scrollbar.maximum())
 
     def mousePressEvent(self, e: QMouseEvent | None) -> None:  # noqa: N802
         if not e:
