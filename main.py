@@ -6,7 +6,7 @@ import re
 import sys
 import traceback
 import types
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from PyQt6.QtCore import (
     QEvent,
@@ -733,7 +733,9 @@ class MainWindow(QMainWindow):
                     "timestamp",
                     False,
                 ):
-                    timestamp = datetime.now(tz=UTC).strftime("[%H:%M]")
+                    timestamp = (
+                        datetime.now(tz=timezone.utc).astimezone().strftime("[%H:%M]")
+                    )
                     message = f"{timestamp}&nbsp;{message}"
 
                 # Fix line breaks based on the target window
