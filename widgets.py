@@ -662,7 +662,7 @@ class QCustomTextEdit(QTextEdit):
         )
 
     @traced(show_args=False)
-    def _clear(self) -> None:
+    def _clear(self, _checked: bool) -> None:
         self.clear()
 
     @traced(show_args=True)
