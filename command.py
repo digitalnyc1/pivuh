@@ -121,8 +121,8 @@ class CommandParser:
                         self._window.game_client.connect()
                         self._window.game_client.authenticate()
 
-                    lich_delay = self._config.get("game", "lich.lich_delay", 5000)
-                    QTimer.singleShot(lich_delay, _connect_after_delay)
+                    connect_delay = self._config.get("game", "lich.connect_delay", 5000)
+                    QTimer.singleShot(connect_delay, _connect_after_delay)
                     return
 
                 self._window.game_client.connect()
