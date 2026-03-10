@@ -7,6 +7,7 @@ import sys
 import traceback
 import types
 from datetime import datetime, timezone
+from pathlib import Path
 
 from PyQt6.QtCore import (
     QEvent,
@@ -721,6 +722,48 @@ class MainWindow(QMainWindow):
         if window not in self.windows:
             return
 
+        if window == "experience":
+            skill, content = message.split("=", 1)
+            self._variables.set("internal", f"exp_{skill}", content)
+
+            widget = self._variables.get("widgets", window, None)
+            if not widget:
+                self._logger.error("Tried to update non-existent experience window.")
+                return
+
+            special_slots = ["exp_rexp", "exp_tdp", "exp_favor", "exp_sleep"]
+
+            fontname = self._config.get("presets", "monospace.fontname")
+            fontsize = self._config.get("presets", "monospace.fontsize")
+            lines = [
+                f"""<pre style='font-family: "{fontname}"; font-size: {fontsize}; white-space: pre-wrap; word-wrap: break-word;'>""",
+            ]
+            for s in [
+                s
+                for s in self._variables.items("internal")
+                if s.startswith("exp_") and s not in special_slots
+            ]:
+                content = self._variables.get("internal", s)
+                if content:
+                    lines.append(f"{content}\n")
+
+            for s in special_slots:
+                content = self._variables.get("internal", s)
+                if content:
+                    if s == "exp_rexp":
+                        content = re.sub(
+                            r"Rested EXP Stored: (.*?)\s(h|m|s)\w*.*?  Usable This Cycle: (.*?)\s(h|m|s)\w*.*?  Cycle Refreshes: (.*?)\s(h|m|s)\w*",
+                            r"      Rested EXP:  \1\2, \3\4, \5\6",
+                            content,
+                        )
+                        content = f"\n{content}"
+                    lines.append(f"{content}\n")
+            lines.append("</pre>")
+
+            self._logger.debug("EXP window update: %s", lines)
+            widget.setHtml("".join(lines))
+            return
+
         # Follow the if_closed chain until we find a visible widget
         target = window
         visited: set = set()
@@ -830,11 +873,15 @@ if __name__ == "__main__":
     config = Config()
     log_level = config.get("client", "logging.log_level")
     formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s: %(message)s")
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(log_level)
-    handler.setFormatter(formatter)
     logger = logging.getLogger()
     logger.setLevel(log_level)
+
+    log_file = Path("logs/pivuh.log")
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+    log_fh = log_file.open("w")
+    handler = logging.StreamHandler(log_fh)
+    handler.setLevel(log_level)
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
 
     # Set up PyQt application

@@ -733,7 +733,7 @@ class GameParser(QObject):
             self._logger.debug(
                 "pushStream/popStream: stream_id(%s) content(%r)", stream_id, content
             )
-            if stream_id != "room" and content:
+            if stream_id not in ("experience", "room") and content:
                 self.update_window.emit(stream_id, content)
 
         self._buffer = re.sub(
@@ -807,47 +807,46 @@ class GameParser(QObject):
 
             elif component_id.startswith("exp "):
                 skill = component_id.replace("exp ", "").replace(" ", "_")
+                self.update_window.emit("experience", f"{skill}={content}")
 
-                if content:
-                    self.update_window.emit("experience", f"{content}<br/>")
-
-                # Normal experience style
-                _groups = re.match(
-                    rf"^\s+{skill}:\s+(\d+)\s(\d+)%\s+(.*?)\s*$",
-                    content,
-                    flags=re.DOTALL,
-                )
-                if not _groups:
-                    # ExpBrief experience style
+                if skill not in ("favor", "sleep", "rexp", "tdp"):
+                    # Normal experience style
                     _groups = re.match(
-                        r"^.*?:\s+(\d+)\s(\d+)%\s+\[\s?(\d+)/34]$",
+                        rf"^\s+{skill}:\s+(\d+)\s(\d+)%\s+(.*?)\s*$",
                         content,
                         flags=re.DOTALL,
                     )
+                    if not _groups:
+                        # ExpBrief experience style
+                        _groups = re.match(
+                            r"^.*?:\s+(\d+)\s(\d+)%\s+\[\s?(\d+)/34]$",
+                            content,
+                            flags=re.DOTALL,
+                        )
 
-                if _groups:
-                    ranks = float(
-                        ".".join(
-                            [
-                                _groups.group(1),
-                                _groups.group(2),
-                            ],
-                        ),
-                    )
-                    mindstate = int(MindState.to_int(_groups.group(3)))
-                    if skill and ranks and mindstate:
-                        self._variables.set("temporary", f"{skill}.Ranks", ranks)
-                        self._variables.set(
-                            "temporary",
-                            f"{skill}.LearningRate",
-                            mindstate,
+                    if _groups:
+                        ranks = float(
+                            ".".join(
+                                [
+                                    _groups.group(1),
+                                    _groups.group(2),
+                                ],
+                            ),
                         )
-                        self._logger.debug(
-                            "Updating skill info: skill(%s) ranks(%s) mindstate(%s)",
-                            skill,
-                            ranks,
-                            mindstate,
-                        )
+                        mindstate = int(MindState.to_int(_groups.group(3)))
+                        if skill and ranks and mindstate:
+                            self._variables.set("temporary", f"{skill}.Ranks", ranks)
+                            self._variables.set(
+                                "temporary",
+                                f"{skill}.LearningRate",
+                                mindstate,
+                            )
+                            self._logger.debug(
+                                "Updating skill info: skill(%s) ranks(%s) mindstate(%s)",
+                                skill,
+                                ranks,
+                                mindstate,
+                            )
 
         self._buffer = re.sub(
             r"""<component.*?>.*?</component>\n?""",

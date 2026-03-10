@@ -3,5 +3,6 @@ build/
 cache/
 config/
 dist/
+logs/
 Pivuh.spec
 venv
