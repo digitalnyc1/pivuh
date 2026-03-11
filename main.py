@@ -385,16 +385,45 @@ class MainWindow(QMainWindow):
         k = a0.key()
         m = a0.modifiers()
 
+        # Crtl+Plus
         if (
             k in (Qt.Key.Key_Plus, Qt.Key.Key_Equal)
             and m & Qt.KeyboardModifier.ControlModifier
         ):
             self._scale_font(1)
+
+        # Ctrl+Minus
         elif (
             k in (Qt.Key.Key_Minus, Qt.Key.Key_Underscore)
             and m & Qt.KeyboardModifier.ControlModifier
         ):
             self._scale_font(-1)
+
+        # Ctrl+PageUp
+        elif k == Qt.Key.Key_PageUp and m & Qt.KeyboardModifier.ControlModifier:
+            scrollbar = self.main.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.minimum())
+
+        # Ctrl+PageDown
+        elif k == Qt.Key.Key_PageDown and m & Qt.KeyboardModifier.ControlModifier:
+            scrollbar = self.main.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.maximum())
+
+        # PageUp
+        elif k == Qt.Key.Key_PageUp:
+            scrollbar = self.main.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.value() - scrollbar.pageStep())
+
+        # PageDown
+        elif k == Qt.Key.Key_PageDown:
+            scrollbar = self.main.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.value() + scrollbar.pageStep())
+
+        # Enter
         elif k in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
             text = self.input.text()
             if text != "":
@@ -403,22 +432,9 @@ class MainWindow(QMainWindow):
             self.input.clear()
 
         if not self.input.hasFocus():
+            if k not in (Qt.Key.Key_Control, Qt.Key.Key_Shift, Qt.Key.Key_Alt):
+                self.input.setFocus()
             self.input.keyPressEvent(a0)
-
-    def keyReleaseEvent(self, a0: QKeyEvent | None) -> None:  # noqa: N802
-        if not a0:
-            return
-
-        k = a0.key()
-
-        if k != Qt.Key.Key_Control:
-            # Don't setFocus() if only the Ctrl key is pressed
-            # Interferes with copying text from QTextEdit widgets
-            self.input.setFocus()
-
-        if not self.input.hasFocus():
-            # Echo the key press event to the input box
-            self.input.keyReleaseEvent(a0)
 
     @traced(show_args=False)
     def reset_compass(self) -> None:
@@ -516,7 +532,9 @@ class MainWindow(QMainWindow):
                 result.append(br)
                 i += 1
 
-        return "".join(result).replace("<br/><br/>", "<br/>")
+        message = "".join(result)
+        self._logger.debug("_apply_args final: %s", message)
+        return "" if message == "<br/>" else message
 
     @traced(show_args=True)
     def _apply_highlights(self, message: str) -> str:
@@ -771,6 +789,13 @@ class MainWindow(QMainWindow):
             visited.add(target)
             widget = self._variables.get("widgets", target, None)
             if widget and widget.isVisible():
+                # Apply gags, subs, highlights
+                message = self._apply_gags(message)
+                if not message:
+                    return
+                message = self._apply_subs(message)
+                message = self._apply_highlights(message)
+
                 # Apply timestamp based on the target window's setting
                 if target in self.windows and self.windows[target].get(
                     "timestamp",
@@ -796,13 +821,6 @@ class MainWindow(QMainWindow):
                     prompt = self._variables.get("temporary", "prompt", "&gt;")
                     if not message.endswith(prompt):
                         message = f"{message}{prompt}"
-
-                # Apply gags, subs, highlights
-                message = self._apply_gags(message)
-                if not message:
-                    return
-                message = self._apply_subs(message)
-                message = self._apply_highlights(message)
 
                 widget.insertHtml(message, ignore_visibility=True)
                 return
