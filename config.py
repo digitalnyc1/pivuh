@@ -10,6 +10,7 @@ CONFIG: dict = {}
 DEFAULTS: dict = {
     "client": {
         "bufsize.read": 10240,
+        "client.copy_on_select": True,
         "client.ident": "/FE:WRAYTH /VERSION:1.0.1.28 /P:WIN_UNKNOWN /XML",
         "client.name": "Pivuh",
         "client.version": "0.0.1",

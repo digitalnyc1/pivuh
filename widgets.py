@@ -560,6 +560,11 @@ class QCustomTextEdit(QTextEdit):
         self.setWordWrapMode(QTextOption.WrapMode.WrapAtWordBoundaryOrAnywhere)
         self.update_style()
 
+        self._copy_timer = QTimer(self)
+        self._copy_timer.setSingleShot(True)
+        self._copy_timer.timeout.connect(self._do_copy_and_deselect)
+        self.selectionChanged.connect(self._on_selection_changed)
+
     @property
     def _window(self) -> "MainWindow":
         return cast("MainWindow", self.window())
@@ -664,6 +669,23 @@ class QCustomTextEdit(QTextEdit):
     @traced(show_args=False)
     def _clear(self, _checked: bool) -> None:
         self.clear()
+
+    @traced(show_args=False)
+    def _on_selection_changed(self) -> None:
+        if not self._config.get("client", "client.copy_on_select", True):
+            return
+
+        self._copy_timer.stop()
+        if self.textCursor().hasSelection():
+            self._copy_timer.start(250)
+
+    def _do_copy_and_deselect(self) -> None:
+        clipboard = QApplication.clipboard()
+        cursor = self.textCursor()
+        if clipboard and cursor.hasSelection():
+            clipboard.setText(cursor.selectedText())
+            cursor.clearSelection()
+            self.setTextCursor(cursor)
 
     @traced(show_args=True)
     def _timestamp(self, checked: bool) -> None:
